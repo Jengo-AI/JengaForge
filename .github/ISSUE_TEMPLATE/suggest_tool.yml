@@ -1,0 +1,57 @@
+name: "Suggest an AI Tool / Model"
+description: "Submit a new frontier AI model, agent, or developer tool for evaluation and registry inclusion"
+title: "[Tool Suggestion]: <Tool Name>"
+labels: ["tool-submission", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping keep JengaForge's curated AI registry up to date!
+  - type: input
+    id: tool_name
+    attributes:
+      label: "Tool / Model Name"
+      placeholder: "e.g., Claude 4.7 Sonnet, Cursor Agent, Flux.2 Pro"
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: "Category"
+      options:
+        - "LLM (Frontier Reasoning & Language)"
+        - "Developer Tools & AI IDEs"
+        - "Image Generation"
+        - "Video Generation"
+        - "Audio & Speech"
+        - "Productivity & Research"
+        - "Agents & Autonomous Systems"
+        - "Prompt Engineering"
+    validations:
+      required: true
+  - type: dropdown
+    id: pricing
+    attributes:
+      label: "Pricing Tier"
+      options:
+        - "Free"
+        - "Freemium"
+        - "Paid"
+        - "Enterprise"
+    validations:
+      required: true
+  - type: input
+    id: website
+    attributes:
+      label: "Official Website or Docs URL"
+      placeholder: "https://..."
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: "Why should this be added to JengaForge?"
+      description: "Briefly explain what makes this tool notable, its key capabilities, and how it compares to existing alternatives."
+      placeholder: "Key capabilities, context window, benchmark performance, primary use cases..."
+    validations:
+      required: true

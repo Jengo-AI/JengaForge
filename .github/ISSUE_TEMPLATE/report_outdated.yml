@@ -1,0 +1,36 @@
+name: "Report Outdated Info / Deprecation"
+description: "Report a tool that has been discontinued, rebranded, or has outdated version/pricing data"
+title: "[Outdated Info]: <Tool Name>"
+labels: ["outdated-data", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help us maintain factual accuracy across the AI tools registry.
+  - type: input
+    id: tool_name
+    attributes:
+      label: "Tool or Model Name"
+      placeholder: "e.g., Sora Interactive, Runway Gen-4"
+    validations:
+      required: true
+  - type: dropdown
+    id: issue_type
+    attributes:
+      label: "Nature of Change"
+      options:
+        - "Tool Discontinued / Deprecated"
+        - "Newer Model Version Available (e.g. Gen-4.5 vs Gen-4)"
+        - "Pricing / Tier Structure Changed"
+        - "Capabilities / Context Window Updated"
+        - "Broken Website Link"
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: "Accurate Update Details & Official Source"
+      description: "Provide the updated information and link to the official changelog or announcement."
+      placeholder: "Official source, announcement date, recommended replacement if deprecated..."
+    validations:
+      required: true

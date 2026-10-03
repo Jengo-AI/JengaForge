@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700;800&family=Inter:wght@400;500;700;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-jenga-50: #fff7ed;
+  --color-jenga-100: #ffedd5;
+  --color-jenga-200: #fed7aa;
+  --color-jenga-300: #FFDCC3;
+  --color-jenga-400: #FFB77D;
+  --color-jenga-500: #FF8C00;
+  --color-jenga-600: #E67E00;
+  --color-jenga-700: #CC7000;
+  --color-jenga-800: #B36200;
+  --color-jenga-900: #995400;
+  --color-jenga-950: #7A4300;
+
+  --color-dark-950: #000000;
+  --color-dark-900: #0E0E0E;
+  --color-dark-800: #131313;
+  --color-dark-700: #1B1B1B;
+  --color-dark-600: #2A2A2A;
+  --color-dark-500: #333333;
+
+  --color-surface-text: #E2E2E2;
+  --color-surface-muted: #A48C7A;
+
+  --font-sans: "Open Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Inter", ui-monospace, SFMono-Regular, monospace;
+  --font-label: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Custom scrollbar for webkit */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0E0E0E; 
+}
+::-webkit-scrollbar-thumb {
+  background: #2A2A2A; 
+  border-radius: 0px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #FF8C00; 
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #2A2A2A;
+  border-radius: 0px;
+}
+
+/* Orange & Hazard Stripe Design System Utilities */
+.hazard-stripe {
+  background: repeating-linear-gradient(
+    -45deg,
+    #FFD100 0 14px,
+    #0A0A0A 14px 28px
+  );
+}
+
+.bg-diagonal-stripes {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 140, 0, 0.05),
+    rgba(255, 140, 0, 0.05) 10px,
+    transparent 10px,
+    transparent 20px
+  );
+}

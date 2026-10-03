@@ -1,0 +1,138 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user profile in the application.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The user's unique identifier (UID)."
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        },
+        "avatar": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to the user's avatar image."
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of when the user joined."
+        },
+        "savedToolIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of tool IDs saved by the user."
+        }
+      },
+      "required": ["id", "name", "email", "avatar", "joinedAt", "savedToolIds"]
+    },
+    "Stack": {
+      "title": "Stack",
+      "description": "A user-created stack of AI tools.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The stack identifier."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The creator's unique identifier (UID)."
+        },
+        "name": {
+          "type": "string",
+          "description": "The stack's display name."
+        },
+        "toolIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of tool IDs in this stack."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of when the stack was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of the last update."
+        }
+      },
+      "required": ["id", "userId", "name", "toolIds", "createdAt", "updatedAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "A user review and rating for a specific AI tool.",
+      "type": "object",
+      "properties": {
+        "toolId": {
+          "type": "string",
+          "description": "The ID of the tool being reviewed."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the review author."
+        },
+        "userName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Display name of the reviewer."
+        },
+        "userAvatar": {
+          "type": "string",
+          "description": "Avatar URL of the reviewer."
+        },
+        "rating": {
+          "type": "number",
+          "description": "Star rating from 1 to 5."
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "The text feedback from the reviewer."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of review creation."
+        }
+      },
+      "required": ["toolId", "userId", "userName", "userAvatar", "rating", "text", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
+      },
+      "description": "Stores user profiles. The document ID matches the user's Firebase Auth UID."
+    },
+    "stacks/{stackId}": {
+      "schema": {
+        "$ref": "#/entities/Stack"
+      },
+      "description": "Stores user-created tool stacks. Any user can view, but only the owner can modify."
+    },
+    "reviews/{reviewId}": {
+      "schema": {
+        "$ref": "#/entities/Review"
+      },
+      "description": "Stores user reviews for AI tools. Any user can read, authenticated users can create."
+    }
+  }
+}

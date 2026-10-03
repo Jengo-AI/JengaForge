@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <!-- Hazard Stripe Pattern: 45deg repeating gradient with Bunifu Yellow and Jengo Black -->
+    <pattern id="hazardStripe" width="28" height="28" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="14" height="28" fill="#FFD100" />
+      <rect x="14" y="0" width="14" height="28" fill="#0A0A0A" />
+    </pattern>
+
+    <!-- Subtle Architectural Blueprint Grid -->
+    <pattern id="archGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1B1B1B" stroke-width="1" />
+    </pattern>
+  </defs>
+
+  <!-- Background: Jengo Black -->
+  <rect width="1200" height="630" fill="#0A0A0A" />
+
+  <!-- Blueprint Grid Overlay -->
+  <rect width="1200" height="630" fill="url(#archGrid)" opacity="0.65" />
+
+  <!-- Top Signature Hazard Stripe Rule -->
+  <rect x="0" y="0" width="1200" height="12" fill="url(#hazardStripe)" />
+
+  <!-- Bottom Signature Hazard Stripe Rule -->
+  <rect x="0" y="618" width="1200" height="12" fill="url(#hazardStripe)" />
+
+  <!-- Left Architectural Accent Border -->
+  <line x1="60" y1="36" x2="60" y2="594" stroke="#2A2A2A" stroke-width="2" stroke-dasharray="6,6" />
+
+  <!-- Top Eyebrow Tag -->
+  <g transform="translate(100, 72)">
+    <rect x="0" y="0" width="350" height="32" fill="#0E0E0E" stroke="#FFD100" stroke-width="2" />
+    <text x="16" y="21" font-family="'JetBrains Mono', 'Inter', monospace" font-size="12" font-weight="700" fill="#FFD100" letter-spacing="3">
+      [ BUNIFU SUITE // INFRASTRUCTURE ]
+    </text>
+  </g>
+
+  <!-- Wordmark: Jengo.AI with yellow dot & JengaForge title -->
+  <g transform="translate(100, 160)">
+    <text x="0" y="0" font-family="'Space Grotesk', 'Inter', sans-serif" font-size="64" font-weight="700" fill="#FAF9F5" letter-spacing="-1">
+      Jengo<tspan fill="#FFD100">.</tspan>AI
+    </text>
+    <text x="320" y="-8" font-family="'Space Grotesk', 'Inter', sans-serif" font-size="32" font-weight="500" fill="#6B6A63" letter-spacing="2">
+      / JengaForge
+    </text>
+  </g>
+
+  <!-- Swahili Etymology Callout -->
+  <g transform="translate(100, 205)">
+    <rect x="0" y="0" width="370" height="26" fill="#FFF6C9" stroke="#0A0A0A" stroke-width="1" />
+    <text x="12" y="17" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="600" fill="#0A0A0A" letter-spacing="1">
+      JENGA (v.) — Swahili: to build, to construct
+    </text>
+  </g>
+
+  <!-- Main Headline -->
+  <g transform="translate(100, 290)">
+    <text x="0" y="0" font-family="'Space Grotesk', 'Inter', sans-serif" font-size="44" font-weight="700" fill="#FFD100" letter-spacing="-0.5">
+      CONSTRUCTION-GRADE AI TOOLS
+    </text>
+    <text x="0" y="52" font-family="'Space Grotesk', 'Inter', sans-serif" font-size="44" font-weight="700" fill="#FAF9F5" letter-spacing="-0.5">
+      &amp; AGENTIC WORKFLOW STACKS
+    </text>
+  </g>
+
+  <!-- Subtitle / Value Prop -->
+  <g transform="translate(100, 410)">
+    <text x="0" y="0" font-family="'Inter', sans-serif" font-size="20" font-weight="400" fill="#A48C7A" width="600">
+      The premier AI ecosystem and workflow builder. Curated 2026 frontier models,
+    </text>
+    <text x="0" y="30" font-family="'Inter', sans-serif" font-size="20" font-weight="400" fill="#A48C7A">
+      specialized agentic pipelines, real-time comparisons, and developer APIs.
+    </text>
+  </g>
+
+  <!-- Monospace Status Signals & Badges -->
+  <g transform="translate(100, 520)">
+    <!-- Badge 1: STATUS: LIVE -->
+    <rect x="0" y="0" width="130" height="34" fill="#0A0A0A" stroke="#FFD100" stroke-width="2" />
+    <text x="16" y="22" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="700" fill="#FFD100" letter-spacing="1.5">
+      ● LIVE 2026
+    </text>
+
+    <!-- Badge 2: 250+ TOOLS -->
+    <rect x="145" y="0" width="140" height="34" fill="#0E0E0E" stroke="#2A2A2A" stroke-width="2" />
+    <text x="161" y="22" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="600" fill="#FAF9F5" letter-spacing="1">
+      250+ TOOLS
+    </text>
+
+    <!-- Badge 3: STACKS -->
+    <rect x="300" y="0" width="170" height="34" fill="#0E0E0E" stroke="#2A2A2A" stroke-width="2" />
+    <text x="316" y="22" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="600" fill="#FAF9F5" letter-spacing="1">
+      AGENTIC STACKS
+    </text>
+
+    <!-- Badge 4: REST API v2 -->
+    <rect x="485" y="0" width="140" height="34" fill="#0E0E0E" stroke="#2A2A2A" stroke-width="2" />
+    <text x="501" y="22" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="600" fill="#FAF9F5" letter-spacing="1">
+      REST API v2
+    </text>
+  </g>
+
+  <!-- RIGHT SIDE: Architectural Construction Graphic (Flat, Line-based, Tower & Bricks) -->
+  <g transform="translate(820, 110)">
+    <!-- Tower Framing & Scaffolding Lines -->
+    <rect x="0" y="0" width="300" height="440" fill="#0E0E0E" stroke="#2A2A2A" stroke-width="2" />
+    
+    <!-- Top Hazard Rule inside frame -->
+    <rect x="2" y="2" width="296" height="8" fill="url(#hazardStripe)" />
+
+    <!-- Corner architectural marks -->
+    <path d="M 10 30 L 10 10 L 30 10" fill="none" stroke="#FFD100" stroke-width="3" />
+    <path d="M 290 30 L 290 10 L 270 10" fill="none" stroke="#FFD100" stroke-width="3" />
+    <path d="M 10 410 L 10 430 L 30 430" fill="none" stroke="#FFD100" stroke-width="3" />
+    <path d="M 290 410 L 290 430 L 270 430" fill="none" stroke="#FFD100" stroke-width="3" />
+
+    <!-- Isometric Stacked Foundation Bricks (Flat Lines) -->
+    <!-- Foundation Level -->
+    <rect x="30" y="340" width="240" height="40" fill="#FFD100" stroke="#0A0A0A" stroke-width="3" />
+    <text x="50" y="365" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="700" fill="#0A0A0A" letter-spacing="2">
+      FOUNDATION LAYER // v3.2
+    </text>
+
+    <!-- Middle Level 1 -->
+    <rect x="30" y="280" width="115" height="45" fill="#FAF9F5" stroke="#0A0A0A" stroke-width="3" />
+    <text x="44" y="308" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700" fill="#0A0A0A" letter-spacing="1">
+      AGENTS
+    </text>
+
+    <rect x="155" y="280" width="115" height="45" fill="#FAF9F5" stroke="#0A0A0A" stroke-width="3" />
+    <text x="169" y="308" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700" fill="#0A0A0A" letter-spacing="1">
+      WORKFLOWS
+    </text>
+
+    <!-- Middle Level 2 -->
+    <rect x="30" y="220" width="240" height="45" fill="#1B1B1B" stroke="#FFD100" stroke-width="2" />
+    <text x="50" y="248" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="600" fill="#FFD100" letter-spacing="2">
+      AUTONOMOUS EXECUTION
+    </text>
+
+    <!-- Upper Level / Crane Block -->
+    <rect x="70" y="150" width="160" height="55" fill="#FFD100" stroke="#0A0A0A" stroke-width="3" />
+    <text x="86" y="184" font-family="'Space Grotesk', sans-serif" font-size="18" font-weight="700" fill="#0A0A0A">
+      JENGA.AI FORGE
+    </text>
+
+    <!-- Flat Scaffolding / Cable lines -->
+    <line x1="150" y1="50" x2="150" y2="150" stroke="#FFD100" stroke-width="3" stroke-dasharray="4,4" />
+    <polygon points="142,50 158,50 150,35" fill="#FFD100" />
+    <circle cx="150" cy="50" r="6" fill="#0A0A0A" stroke="#FFD100" stroke-width="2" />
+
+    <!-- Site Signage Stamp -->
+    <rect x="50" y="70" width="200" height="24" fill="#0A0A0A" stroke="#2A2A2A" stroke-width="1" />
+    <text x="70" y="86" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="600" fill="#A48C7A" letter-spacing="1.5">
+      SPEC: NAIROBI 🇰🇪 2026
+    </text>
+  </g>
+</svg>

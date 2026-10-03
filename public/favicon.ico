@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <!-- Background: Jengo Black with sharp brutalist edges -->
+  <rect width="128" height="128" fill="#0A0A0A" />
+  
+  <!-- Signature Hazard Stripe Accent (Top Edge) -->
+  <defs>
+    <pattern id="hazard" width="16" height="16" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="16" stroke="#FFD100" stroke-width="8" />
+      <line x1="8" y1="0" x2="8" y2="16" stroke="#0A0A0A" stroke-width="8" />
+    </pattern>
+  </defs>
+  <rect x="0" y="0" width="128" height="8" fill="url(#hazard)" />
+  
+  <!-- Architectural Construction Blocks (Flat, Line-based, Swahili "Jenga") -->
+  <!-- Top Block -->
+  <rect x="24" y="24" width="80" height="20" fill="#FFD100" stroke="#0A0A0A" stroke-width="2" />
+  
+  <!-- Mid Left Brick -->
+  <rect x="24" y="48" width="36" height="20" fill="#FFD100" stroke="#0A0A0A" stroke-width="2" />
+  
+  <!-- Mid Right Brick (Forms the strong J vertical pillar) -->
+  <rect x="64" y="48" width="40" height="42" fill="#FFD100" stroke="#0A0A0A" stroke-width="2" />
+  
+  <!-- Lower Hook Brick (Swahili Jenga J-Foundation) -->
+  <rect x="24" y="70" width="36" height="20" fill="#FAF9F5" stroke="#0A0A0A" stroke-width="2" />
+  
+  <!-- Bottom Heavy Base Beam -->
+  <rect x="24" y="94" width="80" height="16" fill="#FFD100" stroke="#0A0A0A" stroke-width="2" />
+  
+  <!-- Jengo Signature Period Dot -->
+  <rect x="88" y="28" width="12" height="12" fill="#0A0A0A" />
+</svg>

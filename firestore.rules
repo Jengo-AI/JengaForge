@@ -1,0 +1,145 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (matches Firebase Auth UID)
+    // Fields:
+    //   - id: string (required, immutable, must match userId)
+    //   - name: string (required, length < 100)
+    //   - email: string (required, valid email)
+    //   - avatar: string (required, valid URL)
+    //   - joinedAt: string (required, ISO 8601 date string, immutable)
+    //   - savedToolIds: list of strings (required, size < 500)
+    //   - masteryLevel: number (required, >= 1)
+    //   - stacksCreated: number (required, >= 0)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasExactFields(fields) {
+      return request.resource.data.keys().hasAll(fields) && request.resource.data.keys().size() == fields.size();
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.size() <= 254 && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && url.size() <= 2000 && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function isValidUser(data, userId) {
+      return hasExactFields(['id', 'name', 'email', 'avatar', 'joinedAt', 'savedToolIds', 'masteryLevel', 'stacksCreated']) &&
+             data.id == userId &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             isValidEmail(data.email) &&
+             isValidUrl(data.avatar) &&
+             isValidDateString(data.joinedAt) &&
+             data.savedToolIds is list && data.savedToolIds.size() <= 500 &&
+             data.masteryLevel is number && data.masteryLevel >= 1 &&
+             data.stacksCreated is number && data.stacksCreated >= 0;
+    }
+
+    function isValidStack(data, stackId) {
+      return hasExactFields(['id', 'userId', 'name', 'toolIds', 'createdAt', 'updatedAt']) &&
+             data.id == stackId &&
+             data.userId == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.toolIds is list && data.toolIds.size() <= 100 &&
+             isValidDateString(data.createdAt) &&
+             isValidDateString(data.updatedAt);
+    }
+
+    function isValidReview(data) {
+      return hasExactFields(['toolId', 'userId', 'userName', 'userAvatar', 'rating', 'text', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.toolId is string && data.toolId.size() > 0 &&
+             data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
+             (data.userAvatar == "" || isValidUrl(data.userAvatar)) &&
+             data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+             data.text is string && data.text.size() <= 2000 &&
+             isValidDateString(data.createdAt);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // Only the owner can read their profile
+      allow read: if isOwner(userId);
+      
+      // Owner can create their profile
+      allow create: if isOwner(userId) && isValidUser(request.resource.data, userId);
+      
+      // Owner can update their profile, but cannot change id or joinedAt
+      allow update: if isOwner(userId) && 
+                    isValidUser(request.resource.data, userId) &&
+                    request.resource.data.id == resource.data.id &&
+                    request.resource.data.joinedAt == resource.data.joinedAt;
+                    
+      allow delete: if false; // Users cannot be deleted from the client
+    }
+
+    match /stacks/{stackId} {
+      // Anyone can read a stack (useful for sharing)
+      allow read: if true;
+      
+      allow create: if isAuthenticated() && isValidStack(request.resource.data, stackId);
+      
+      // Owner can update, but cannot change id, userId, or createdAt
+      allow update: if isAuthenticated() && 
+                    isOwner(resource.data.userId) &&
+                    isValidStack(request.resource.data, stackId) &&
+                    request.resource.data.id == resource.data.id &&
+                    request.resource.data.userId == resource.data.userId &&
+                    request.resource.data.createdAt == resource.data.createdAt;
+                    
+      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+
+    match /reviews/{reviewId} {
+      // Anyone can read a review
+      allow read: if true;
+      
+      // Authenticated users can create reviews, limit 1 per user per tool logic usually done in backend or checking existing,
+      // but in firestore rules we just validate structure. Rate limits would require a separate write-history tracking approach.
+      allow create: if isAuthenticated() && isValidReview(request.resource.data);
+      
+      // Owner can update
+      allow update: if isAuthenticated() && 
+                    isOwner(resource.data.userId) &&
+                    isValidReview(request.resource.data) &&
+                    request.resource.data.userId == resource.data.userId &&
+                    request.resource.data.toolId == resource.data.toolId &&
+                    request.resource.data.createdAt == resource.data.createdAt;
+                    
+      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+  }
+}

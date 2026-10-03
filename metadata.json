@@ -1,0 +1,8 @@
+{
+  "name": "JengaForge",
+  "description": "Curated AI tools and models registry with Gemini-powered recommendations, workflow stack builder, and comparisons.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
