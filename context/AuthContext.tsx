@@ -149,8 +149,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateProfile = async (updates: Partial<User>) => {
     if (!user) return;
     try {
+      const allowedUpdates: Partial<User> = {};
+      if (typeof updates.name === 'string' && updates.name.trim().length > 0) {
+        allowedUpdates.name = updates.name.trim().slice(0, 100);
+      }
+      if (typeof updates.avatar === 'string' && updates.avatar.trim().length > 0) {
+        allowedUpdates.avatar = updates.avatar.trim().slice(0, 2000);
+      }
+      if (Array.isArray(updates.savedToolIds)) {
+        allowedUpdates.savedToolIds = updates.savedToolIds.slice(0, 500);
+      }
+      if (typeof updates.masteryLevel === 'number' && updates.masteryLevel >= 1) {
+        allowedUpdates.masteryLevel = updates.masteryLevel;
+      }
+      if (typeof updates.stacksCreated === 'number' && updates.stacksCreated >= 0) {
+        allowedUpdates.stacksCreated = updates.stacksCreated;
+      }
+
+      if (Object.keys(allowedUpdates).length === 0) return;
+
       const userRef = doc(db, 'users', user.id);
-      await updateDoc(userRef, updates);
+      await updateDoc(userRef, allowedUpdates);
     } catch (error) {
       try {
         handleFirestoreError(error, OperationType.UPDATE, `users/${user.id}`);

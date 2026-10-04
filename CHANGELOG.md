@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.0] - 2026-10-04
+
+### Security & Architecture Hardening
+- **Gemini BYOK Client-Side Isolation (`services/geminiService.ts`, `server.ts`)**:
+  - Enforced zero-trust boundary for user API keys. When Bring-Your-Own-Key is used, requests are executed client-side via `@google/genai` directly from the user's browser, preventing user keys from ever touching proxy headers, server traces, or backend logs.
+  - Hardened `/api/chat` to exclusively use `process.env.GEMINI_API_KEY` in server-proxy mode.
+- **CORS Allowlist Enforcement (`server.ts`)**:
+  - Replaced open `cors()` with an origin allowlist restricted to `https://jenga-forge.vercel.app`, `https://jengaforge.ai`, and local development ports.
+- **Community Tool Moderation Workflow (`server.ts`, `components/SubmitToolModal.tsx`)**:
+  - Submissions are assigned `PENDING_REVIEW` status in a staging queue rather than directly polluting the live canonical registry.
+  - Implemented SSRF-resistant URL validation (`isValidHttpUrl`) verifying public DNS hostnames and rejecting private RFC 1918 IPs, link-local addresses, and `.local`/`.internal` domains.
+- **Database Idempotency & Firestore Rules Hardening (`firestore.rules`, `services/reviewService.ts`)**:
+  - Converted review creation to deterministic document IDs (`reviews/{userId}_{toolId}`) with Firestore rules enforcement, guaranteeing a strict 1-review-per-user-per-tool constraint at the database layer.
+  - Hardened user document mutation rules preventing modification of `id`, `email`, and `joinedAt`.
+  - Sanitized `updateProfile` in `context/AuthContext.tsx` with field-level whitelisting.
+
+### Repo Hygiene & Ecosystem Sync
+- Removed redundant `bun.lock` to unify dependency management around standard `package-lock.json` and `npm`.
+- Synchronized all tool registry entries in `constants.ts` with `status: "Active" | "Watch" | "Deprecated"` and `lastVerified: "October 2026"`.
+- Updated server ecosystem telemetry, assistant dates, and model references.
+
 ## [3.6.0] - 2026-10-03
 
 ### Added

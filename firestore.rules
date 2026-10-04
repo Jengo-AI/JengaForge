@@ -97,10 +97,11 @@ service cloud.firestore {
       // Owner can create their profile
       allow create: if isOwner(userId) && isValidUser(request.resource.data, userId);
       
-      // Owner can update their profile, but cannot change id or joinedAt
+      // Owner can update their profile, but cannot change id, email, or joinedAt
       allow update: if isOwner(userId) && 
                     isValidUser(request.resource.data, userId) &&
                     request.resource.data.id == resource.data.id &&
+                    request.resource.data.email == resource.data.email &&
                     request.resource.data.joinedAt == resource.data.joinedAt;
                     
       allow delete: if false; // Users cannot be deleted from the client
@@ -127,13 +128,15 @@ service cloud.firestore {
       // Anyone can read a review
       allow read: if true;
       
-      // Authenticated users can create reviews, limit 1 per user per tool logic usually done in backend or checking existing,
-      // but in firestore rules we just validate structure. Rate limits would require a separate write-history tracking approach.
-      allow create: if isAuthenticated() && isValidReview(request.resource.data);
+      // Enforce 1 review per user per tool via deterministic document ID: {userId}_{toolId}
+      allow create: if isAuthenticated() && 
+                    reviewId == request.auth.uid + '_' + request.resource.data.toolId &&
+                    isValidReview(request.resource.data);
       
-      // Owner can update
+      // Owner can update their review without mutating userId, toolId, or creation timestamp
       allow update: if isAuthenticated() && 
                     isOwner(resource.data.userId) &&
+                    reviewId == resource.data.userId + '_' + resource.data.toolId &&
                     isValidReview(request.resource.data) &&
                     request.resource.data.userId == resource.data.userId &&
                     request.resource.data.toolId == resource.data.toolId &&

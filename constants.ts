@@ -239,25 +239,29 @@ export const TOOLS_REGISTRY: Tool[] = [
   {
     id: "cursor-agent",
     name: "Cursor Agent (v3)",
-    description: "The AI-first IDE that builds entire features from single prompts. Integrates Claude 4.7 Sonnet for precise, multi-file edits.",
+    description: "The AI-first IDE that builds entire features from single prompts. Integrates Claude Sonnet 5.5 for precise, multi-file edits and deep codebase comprehension.",
     category: ToolCategory.DEV_TOOLS,
     pricing: "Freemium",
     rating: 5.0,
     reviews: 36000,
     tags: ["IDE", "Auto-Coding", "Productivity"],
     websiteUrl: "https://cursor.com",
+    status: "Active",
+    lastVerified: "October 2026",
     specs: { easeOfUse: 95, power: 100, community: 100, costEfficiency: 88, integration: 100 }
   },
   {
     id: "v0-dev",
     name: "v0.dev (V3)",
-    description: "Vercel's UI generation agent. The recent Spring 2026 update (V3) builds fully functional frontend and backend integrations, complete with database schemas, in seconds.",
+    description: "Vercel's UI generation agent. Builds fully functional frontend and backend integrations, complete with database schemas and modern Tailwind components, in seconds.",
     category: ToolCategory.DEV_TOOLS,
     pricing: "Freemium",
     rating: 5.0,
     reviews: 21500,
     tags: ["UI/UX", "Full-Stack", "React"],
     websiteUrl: "https://v0.dev",
+    status: "Active",
+    lastVerified: "October 2026",
     specs: { easeOfUse: 100, power: 96, community: 95, costEfficiency: 90, integration: 98 }
   },
 
@@ -272,6 +276,8 @@ export const TOOLS_REGISTRY: Tool[] = [
     reviews: 21000,
     tags: ["Voice", "Emotion", "Accents"],
     websiteUrl: "https://elevenlabs.io",
+    status: "Active",
+    lastVerified: "October 2026",
     specs: { easeOfUse: 96, power: 99, community: 95, costEfficiency: 65, integration: 98 }
   },
   {
@@ -284,6 +290,8 @@ export const TOOLS_REGISTRY: Tool[] = [
     reviews: 32000,
     tags: ["Music", "Stems", "Radio-Ready"],
     websiteUrl: "https://suno.com",
+    status: "Active",
+    lastVerified: "October 2026",
     specs: { easeOfUse: 98, power: 95, community: 99, costEfficiency: 92, integration: 72 }
   },
 
@@ -291,25 +299,29 @@ export const TOOLS_REGISTRY: Tool[] = [
   {
     id: "deepseek-v4",
     name: "DeepSeek-V4 (R2)",
-    description: "The 'Efficiency King'. Open-weights reasoning model that rivals ChatGPT 5.4 for a fraction of the inference cost, featuring native code execution.",
+    description: "The 'Efficiency King'. Open-weights reasoning model that rivals GPT-6 Astra for a fraction of the inference cost, featuring native code execution.",
     category: ToolCategory.LLM,
     pricing: "Free",
     rating: 4.9,
     reviews: 24000,
     tags: ["Open-Weights", "Logic", "Low-Cost"],
     websiteUrl: "https://deepseek.com",
+    status: "Active",
+    lastVerified: "October 2026",
     specs: { easeOfUse: 75, power: 98, community: 96, costEfficiency: 100, integration: 88 }
   },
   {
     id: "devin-ai",
     name: "Devin v2",
-    description: "The world's first fully autonomous AI software engineer. The April 2026 v2 rollout enables multi-repo scaling and automatic bug bounty hunting.",
+    description: "The world's first fully autonomous AI software engineer. The late 2026 v2 rollout enables multi-repo scaling, test synthesis, and automatic bug hunting.",
     category: ToolCategory.AGENT,
     pricing: "Enterprise",
     rating: 4.9,
     reviews: 28500,
     tags: ["Software Engineering", "Autonomous", "Multi-Repo"],
     websiteUrl: "https://cognition-labs.com",
+    status: "Active",
+    lastVerified: "October 2026",
     specs: { easeOfUse: 85, power: 100, community: 88, costEfficiency: 75, integration: 94 }
   },
   {
@@ -322,6 +334,8 @@ export const TOOLS_REGISTRY: Tool[] = [
     reviews: 8400,
     tags: ["Orchestration", "Multi-Agent", "Framework"],
     websiteUrl: "https://crewai.com",
+    status: "Active",
+    lastVerified: "October 2026",
     specs: { easeOfUse: 75, power: 92, community: 98, costEfficiency: 85, integration: 95 }
   },
   {
@@ -334,18 +348,22 @@ export const TOOLS_REGISTRY: Tool[] = [
     reviews: 5300,
     tags: ["Web Automation", "Browser", "RPA"],
     websiteUrl: "https://multion.ai",
+    status: "Active",
+    lastVerified: "October 2026",
     specs: { easeOfUse: 88, power: 85, community: 80, costEfficiency: 75, integration: 82 }
   },
   {
     id: "auto-gpt-v2",
     name: "AutoGPT v2",
-    description: "An experimental open-source attempt to make GPT-4 fully autonomous. Chaining together LLM 'thoughts' to autonomously achieve whatever goal you set.",
+    description: "An experimental open-source attempt to make autonomous systems self-directing. Chaining together LLM thoughts to autonomously achieve set goals.",
     category: ToolCategory.AGENT,
     pricing: "Free",
     rating: 4.5,
     reviews: 45000,
     tags: ["Open-Source", "Autonomous", "Experimental"],
     websiteUrl: "https://agpt.co",
+    status: "Watch",
+    lastVerified: "October 2026",
     specs: { easeOfUse: 60, power: 90, community: 100, costEfficiency: 95, integration: 70 }
   },
 
@@ -360,6 +378,8 @@ export const TOOLS_REGISTRY: Tool[] = [
     reviews: 14200,
     tags: ["Tracing", "Evaluation", "Optimization"],
     websiteUrl: "https://smith.langchain.com",
+    status: "Active",
+    lastVerified: "October 2026",
     specs: { easeOfUse: 80, power: 98, community: 95, costEfficiency: 82, integration: 100 }
   },
   {
@@ -372,6 +392,8 @@ export const TOOLS_REGISTRY: Tool[] = [
     reviews: 9800,
     tags: ["A/B Testing", "Analytics", "Middleware"],
     websiteUrl: "https://promptlayer.com",
+    status: "Active",
+    lastVerified: "October 2026",
     specs: { easeOfUse: 92, power: 90, community: 85, costEfficiency: 88, integration: 96 }
   },
   {
@@ -384,6 +406,8 @@ export const TOOLS_REGISTRY: Tool[] = [
     reviews: 58000,
     tags: ["Playground", "Structured Output", "Gemini"],
     websiteUrl: "https://aistudio.google.com/app/prompts/new_chat",
+    status: "Active",
+    lastVerified: "October 2026",
     specs: { easeOfUse: 95, power: 97, community: 90, costEfficiency: 100, integration: 92 }
   }
 ];

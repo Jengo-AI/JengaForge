@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../context/AuthContext';
 
@@ -30,8 +30,13 @@ export const reviewService = {
     }
   },
 
+  /**
+   * Adds or updates a review using deterministic reviewId `${userId}_${toolId}`.
+   * This naturally enforces the constraint of 1 review per user per tool at the Firestore level.
+   */
   addReview: async (toolId: string, userId: string, userName: string, userAvatar: string | undefined, rating: number, text: string): Promise<Review | null> => {
     try {
+      const reviewId = `${userId}_${toolId}`;
       const newReview = {
         toolId,
         userId,
@@ -42,10 +47,11 @@ export const reviewService = {
         createdAt: new Date().toISOString()
       };
       
-      const docRef = await addDoc(collection(db, 'reviews'), newReview);
-      return { id: docRef.id, ...newReview };
+      const reviewRef = doc(db, 'reviews', reviewId);
+      await setDoc(reviewRef, newReview);
+      return { id: reviewId, ...newReview };
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'reviews');
+      handleFirestoreError(error, OperationType.CREATE, `reviews/${userId}_${toolId}`);
       return null;
     }
   }

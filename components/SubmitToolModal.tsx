@@ -37,8 +37,16 @@ export const SubmitToolModal: React.FC<SubmitToolModalProps> = ({ isOpen, onClos
       setError('Description must be at least 10 characters.');
       return;
     }
-    if (!websiteUrl.trim() || !websiteUrl.startsWith('http')) {
-      setError('A valid website URL starting with http:// or https:// is required.');
+    let isValidUrl = false;
+    try {
+      const parsed = new URL(websiteUrl.trim());
+      isValidUrl = (parsed.protocol === 'https:' || parsed.protocol === 'http:') && Boolean(parsed.hostname.includes('.'));
+    } catch {
+      isValidUrl = false;
+    }
+
+    if (!isValidUrl) {
+      setError('Please provide a valid, complete website URL (e.g. https://yourtool.com).');
       return;
     }
 

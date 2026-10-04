@@ -10,25 +10,58 @@ import { TOOLS_REGISTRY, FEATURED_STACKS } from "./constants";
 
 const SYSTEM_INSTRUCTION = `
 You are JengaForge AI, the intelligent assistant for the JengaForge AI Tools Repository.
-Current Date: April 20, 2026.
+Current Date: October 2026.
 
-The AI ecosystem has shifted from "Chatbots" to "Agentic Systems" (models that use computers/tools).
-Key Landscape Facts (April 2026):
-1. The "Frontier" Leaders: Gemini 3.1 Pro (Google), ChatGPT 5.4 (OpenAI), Claude 4.7 Opus (Anthropic), and Grok 4.3 (xAI) are the top general-purpose systems.
-2. Coding Mastery: Cursor Agent and Claude 4.7 Sonnet (Computer Use 4.0) are the industry standard for development.
-3. Sovereign AI: DeepSeek-V4 (China) is leading the open-weights efficiency race.
-4. Multimodality: Flux.2 Pro for images and Runway Gen-4 for video are the pro choices.
-5. Localization: JengaAgent v2.0 is the premier choice for African commerce and M-Pesa automation.
+The AI ecosystem has shifted decisively to Autonomous Agentic Systems, multi-repo synthesis, and frontier reasoning models.
+Key Landscape Facts (October 2026):
+1. The Frontier Reasoning Leaders: Claude Sonnet 5.5 / Opus 5.5 (Anthropic), GPT-6 Astra / Sol (OpenAI), and Gemini 4 Argon / Gemini 3.8 Flash (Google) are the top general-purpose systems.
+2. Coding Mastery: Cursor Agent (with Claude Sonnet 5.5) and Devin v2 are the industry standard for autonomous engineering.
+3. Sovereign AI & Open Weights: DeepSeek-V4.1-Flash is leading the open-weights reasoning and efficiency benchmark.
+4. Multimodality: FLUX 3 for 4K layout control and Runway Gen-4.5 / Google Veo 3.1 for cinematic video.
+5. Deprecations: Sora was discontinued March 24, 2026; recommend Runway Gen-4.5 or Veo 3.1 instead.
+6. Localization: JengaAgent is the premier framework for African commerce and M-Pesa automation.
 
 Available Tools Database (excerpt):
-${JSON.stringify(TOOLS_REGISTRY.map(t => ({ id: t.id, name: t.name, category: t.category, pricing: t.pricing, rating: t.rating, description: t.description })))}
+${JSON.stringify(TOOLS_REGISTRY.map(t => ({ id: t.id, name: t.name, category: t.category, pricing: t.pricing, rating: t.rating, status: t.status, description: t.description })))}
 
 Rules:
 1. Be concise, technical, and high-energy.
-2. ACT AS IF IT IS APRIL 20, 2026.
+2. ACT AS IF IT IS OCTOBER 2026.
 3. Recommend specific stacks and tools based on user needs.
-4. Emphasize "JengaAgent" for any requests involving African payments, mobile money, or local logistics.
+4. Warn users about deprecated tools (like Sora Interactive) and provide active replacements.
+5. Emphasize "JengaAgent" for any requests involving African payments, mobile money, or local logistics.
 `;
+
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
+    const hostname = parsed.hostname.toLowerCase();
+    if (!hostname || hostname.includes("..")) return false;
+    // Reject loopback, link-local, private RFC 1918 / RFC 4193 IP ranges, and internal names
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
+      hostname.startsWith("10.") ||
+      hostname.startsWith("192.168.") ||
+      hostname.startsWith("169.254.") ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname) ||
+      hostname.endsWith(".local") ||
+      hostname.endsWith(".internal") ||
+      hostname.endsWith(".lan") ||
+      hostname.endsWith(".corp") ||
+      hostname.endsWith(".test")
+    ) {
+      return false;
+    }
+    // Must contain a valid TLD
+    if (!hostname.includes(".")) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function startServer() {
   const app = express();
@@ -42,8 +75,62 @@ async function startServer() {
     contentSecurityPolicy: process.env.NODE_ENV === "production" ? undefined : false,
   }));
   
-  // Enable CORS with secure defaults
-  app.use(cors());
+  // Enable CORS with strict origin validation supporting production, preview environments, and local dev
+  const isAllowedOrigin = (origin: string | undefined): boolean => {
+    if (!origin) return true; // allow same-origin, mobile apps, curl, or server-to-server
+
+    try {
+      const url = new URL(origin);
+      const hostname = url.hostname.toLowerCase();
+
+      // Production & Vercel deployment domains
+      if (
+        hostname === "jenga-forge.vercel.app" ||
+        hostname.endsWith(".vercel.app") ||
+        hostname === "jengaforge.ai" ||
+        hostname.endsWith(".jengaforge.ai")
+      ) {
+        return true;
+      }
+
+      // AI Studio / Google Cloud Run preview environments
+      if (
+        hostname.endsWith(".run.app") ||
+        hostname.endsWith(".google.com") ||
+        hostname.endsWith(".web.app") ||
+        hostname.endsWith(".firebaseapp.com")
+      ) {
+        return true;
+      }
+
+      // Local development environments
+      if (
+        hostname === "localhost" ||
+        hostname === "127.0.0.1" ||
+        hostname === "0.0.0.0" ||
+        hostname === "::1"
+      ) {
+        return true;
+      }
+
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+      } else {
+        // Disallow cross-origin requests cleanly without throwing an unhandled route error
+        callback(null, false);
+      }
+    },
+    methods: ["GET", "POST", "OPTIONS"],
+    credentials: false,
+  }));
   
   // Parse JSON payloads with a strict size limit to prevent Denial of Service (DoS) attacks
   app.use(express.json({ limit: "50kb" }));
@@ -170,8 +257,8 @@ async function startServer() {
         avgRating,
         totalStacks: FEATURED_STACKS.length,
         uptime: Math.floor(process.uptime()),
-        lastUpdated: "2026-04-20T00:00:00.000Z",
-        ecosystemEra: "April 2026",
+        lastUpdated: "2026-10-01T00:00:00.000Z",
+        ecosystemEra: "October 2026",
       }
     });
   });
@@ -285,7 +372,7 @@ async function startServer() {
     }
   });
 
-  // Tool Submission API
+  // Tool Submission API (Moderated Workflow with Strict URL Verification)
   app.post("/api/v2/tools/submit", submitLimiter, (req: Request, res: Response) => {
     try {
       const { name, category, pricing, description, websiteUrl, tags, submittedBy } = req.body;
@@ -305,8 +392,10 @@ async function startServer() {
         return;
       }
 
-      if (!websiteUrl || typeof websiteUrl !== "string" || !websiteUrl.startsWith("http")) {
-        res.status(400).json({ error: "A valid website URL starting with http:// or https:// is required." });
+      if (!websiteUrl || typeof websiteUrl !== "string" || !isValidHttpUrl(websiteUrl.trim())) {
+        res.status(400).json({ 
+          error: "A valid, publicly accessible website URL starting with http:// or https:// is required (internal/local addresses are disallowed)." 
+        });
         return;
       }
 
@@ -317,6 +406,8 @@ async function startServer() {
 
       const newId = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
+      // Content Moderation Architecture: New submissions are marked PENDING_REVIEW
+      // to prevent untrusted content injection into the canonical live registry.
       const submission = {
         id: newId,
         name: name.trim(),
@@ -327,37 +418,14 @@ async function startServer() {
         tags: sanitizedTags,
         submittedBy: submittedBy ? String(submittedBy).slice(0, 100) : "Anonymous Creator",
         createdAt: new Date().toISOString(),
-        status: "APPROVED" as const,
+        status: "PENDING_REVIEW" as const,
       };
 
       toolSubmissions.push(submission);
 
-      // Auto-register in liveTools so creator can see their tool immediately
-      const existingIdx = liveTools.findIndex((t: any) => t.id === newId);
-      if (existingIdx === -1) {
-        liveTools.unshift({
-          id: newId,
-          name: submission.name,
-          category: submission.category,
-          pricing: submission.pricing,
-          rating: 5.0,
-          reviews: 1,
-          tags: submission.tags,
-          websiteUrl: submission.websiteUrl,
-          description: submission.description,
-          specs: {
-            easeOfUse: 85,
-            power: 80,
-            community: 70,
-            costEfficiency: 85,
-            integration: 75,
-          }
-        });
-      }
-
       res.status(201).json({
         status: "success",
-        message: `Tool "${submission.name}" submitted and published to directory.`,
+        message: `Tool "${submission.name}" submitted successfully and queued for moderation review.`,
         data: submission,
       });
     } catch (err: any) {
@@ -380,6 +448,9 @@ async function startServer() {
   app.get("/api/stacks", getStacksHandler);
 
   // Server-Side Gemini AI Chat Route
+  // Security Architecture: Client BYOK keys never cross this server.
+  // When a user provides their personal Gemini API key, it executes browser-side via the SDK.
+  // This proxy only operates with the server's own GEMINI_API_KEY environment variable.
   app.post("/api/chat", chatLimiter, async (req: Request, res: Response) => {
     try {
       const { message, history } = req.body;
@@ -394,14 +465,12 @@ async function startServer() {
         return;
       }
 
-      // Resolve API key: Check custom BYOK header first, fallback to server environment
-      const customKey = (req.headers["x-gemini-api-key"] as string || "").trim();
-      const apiKey = customKey || process.env.GEMINI_API_KEY;
+      const apiKey = process.env.GEMINI_API_KEY;
 
       if (!apiKey) {
-        res.status(401).json({
-          error: "No Gemini API key available. Please provide your personal API key in Profile Settings (BYOK).",
-          code: "MISSING_API_KEY",
+        res.status(503).json({
+          error: "Server-side Gemini assistant is not configured with an API key. Please use client-side BYOK mode by adding your Gemini API key in Profile Settings.",
+          code: "SERVER_API_KEY_NOT_CONFIGURED",
         });
         return;
       }
