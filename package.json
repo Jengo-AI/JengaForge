@@ -11,7 +11,8 @@
     "start": "node dist/server.cjs",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/**/*.test.ts"
+    "sync:rules": "tsx scripts/syncRules.ts",
+    "test": "npm run sync:rules && tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
     "@google/genai": "^1.31.0",

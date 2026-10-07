@@ -100,3 +100,15 @@ export function sanitizeProfileUpdates(updates: any): Record<string, any> {
 
   return allowedUpdates;
 }
+
+/**
+ * Sanitizes Firestore and database errors for client presentation, preventing leaks of
+ * internal Firebase SDK configurations, project IDs, stack traces, or collection paths.
+ */
+export function sanitizeClientErrorMessage(err: unknown, fallbackMessage: string): string {
+  if (process.env.NODE_ENV !== 'production') {
+    const raw = err instanceof Error ? err.message : String(err);
+    console.warn('[DataService Error]:', raw);
+  }
+  return fallbackMessage;
+}

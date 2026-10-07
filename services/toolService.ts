@@ -2,7 +2,7 @@ import { Tool, ToolSubmission, PlatformStats, ToolsApiResponse } from '../types'
 import { TOOLS_REGISTRY, getToolById as getLocalToolById } from '../constants';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { isValidHttpUrl } from './securityUtils';
+import { isValidHttpUrl, sanitizeClientErrorMessage } from './securityUtils';
 
 export interface FetchToolsParams {
   q?: string;
@@ -179,9 +179,8 @@ export const toolService = {
         };
       }
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : 'Database error recording upvote';
-      console.error('[toolService] Upvote error:', errMsg);
-      return { status: 'error', message: errMsg };
+      const userMessage = sanitizeClientErrorMessage(err, 'Unable to update upvote. Please try again.');
+      return { status: 'error', message: userMessage };
     }
   },
 
@@ -230,9 +229,8 @@ export const toolService = {
         data: submissionPayload,
       };
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : 'Error submitting tool to moderation queue';
-      console.error('[toolService] Tool submission error:', errMsg);
-      return { success: false, message: errMsg };
+      const userMessage = sanitizeClientErrorMessage(err, 'Unable to submit tool to the moderation queue. Please check your network and try again.');
+      return { success: false, message: userMessage };
     }
   },
 

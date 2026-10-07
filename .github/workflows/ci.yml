@@ -34,11 +34,25 @@ jobs:
       - name: Typecheck TypeScript
         run: npm run typecheck
 
-      - name: Automated Security & Regression Tests
+      - name: Synchronize Firestore Rules from Canonical Registry
+        run: npm run sync:rules
+
+      - name: Automated Security, Rules & Regression Tests
         run: npm test
+
+      - name: Secret Scanning (Gitleaks / Token Detection)
+        run: |
+          echo "Scanning codebase for hardcoded credentials or API tokens..."
+          ! grep -rnE "(AIza[0-9A-Za-z-_]{35}|ghp_[0-9A-Za-z]{36}|sk-[0-9A-Za-z]{32,})" . \
+            --exclude-dir=node_modules --exclude-dir=.git --exclude="package-lock.json"
 
       - name: Dependency Vulnerability Audit
         run: npm audit --audit-level=high
 
       - name: Build Application
         run: npm run build
+
+      - name: Generate Software Bill of Materials (SBOM)
+        run: |
+          mkdir -p build-artifacts
+          npm list --json --all > build-artifacts/sbom.json

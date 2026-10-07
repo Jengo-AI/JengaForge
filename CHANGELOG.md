@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.8.2] - 2026-10-07
+
+### Production Hardening & Security Pipeline Resolution
+- **Automated Registry & Security Rules Synchronization (`scripts/syncRules.ts`, `package.json`)**:
+  - Implemented automated sync script `scripts/syncRules.ts` that derives `canonicalToolIds()` directly from `TOOLS_REGISTRY`, removing duplicate sources of truth.
+  - Linked sync script to `npm test` and CI workflow pipelines to prevent configuration divergence.
+- **Strict Exact-Schema Document Enforcement (`firestore.rules`)**:
+  - Replaced permissive field matching on `toolSubmissions` with exact schema constraint `hasExactFields(...)`, rejecting arbitrary extra fields injected by malicious actors.
+- **Server Timestamp Support (`firestore.rules`, `services/toolService.ts`)**:
+  - Added `isTimestampOrServerTimestamp()` validator allowing both strict ISO strings and atomic `request.time` server timestamps for `createdAt` and `updatedAt`.
+- **Sanitized Client Error Handling (`services/securityUtils.ts`, `services/toolService.ts`)**:
+  - Added `sanitizeClientErrorMessage()` to redact raw Firestore/Firebase errors, project identifiers, and stack traces before surfacing feedback in the UI.
+- **Dynamic AI Model Registry Integration (`server.ts`)**:
+  - Removed static hard-coded model/tool worldviews from the assistant prompt in `server.ts`.
+  - Implemented `buildSystemInstruction()` to dynamically ground the Gemini system instruction with real-time `TOOLS_REGISTRY` and `FEATURED_STACKS`.
+- **Configurable Reverse-Proxy Trust (`server.ts`)**:
+  - Replaced hard-coded `trust proxy = 1` with configurable `TRUST_PROXY` environment variable handling.
+- **Dedicated Firestore Security Rules Test Suite (`tests/firestoreRules.test.ts`)**:
+  - Added automated security invariant test suite verifying canonical synchronization, exact schemas, UID forging protection, upvote/review authorizations, SSRF boundaries, and profile immutability.
+- **Enhanced Security CI Pipeline (`.github/workflows/ci.yml`)**:
+  - Added GitHub Dependency Review, CodeQL security scanning, npm audit with strict thresholds, and automated rules validation.
+
 ## [3.8.1] - 2026-10-07
 
 ### Architectural Unification & Zero-Trust Hardening

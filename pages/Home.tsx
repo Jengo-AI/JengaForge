@@ -136,19 +136,6 @@ export const Home: React.FC = () => {
           style={{ opacity: opacityText, scale: scaleText }}
           className="container mx-auto max-w-4xl relative z-10 text-center"
         >
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="inline-block mb-6 px-4 py-1.5 bg-dark-800 border-2 border-jenga-500 text-jenga-500 text-xs font-black uppercase tracking-widest flex items-center gap-2 justify-center w-fit mx-auto"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full bg-jenga-400 opacity-75"></span>
-              <span className="relative inline-flex h-2 w-2 bg-jenga-500"></span>
-            </span>
-            Updated Apr 20, 2026 • State of AI
-          </motion.div>
-          
           <motion.h1 
             initial={{ opacity: 0, y: 30, rotateX: 20 }}
             animate={{ opacity: 1, y: 0, rotateX: 0 }}

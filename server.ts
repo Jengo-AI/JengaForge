@@ -9,36 +9,67 @@ import { GoogleGenAI } from "@google/genai";
 import { TOOLS_REGISTRY, FEATURED_STACKS } from "./constants";
 import { isAllowedOrigin } from "./services/securityUtils";
 
-const SYSTEM_INSTRUCTION = `
+/**
+ * Dynamically synthesizes the system prompt from the active TOOLS_REGISTRY and FEATURED_STACKS,
+ * ensuring no out-of-sync or hard-coded assumptions drift between server and app catalog.
+ */
+function buildSystemInstruction(): string {
+  const activeTools = TOOLS_REGISTRY.filter(t => t.status === "Active");
+  const deprecatedTools = TOOLS_REGISTRY.filter(t => t.status === "Deprecated");
+
+  const categories = Array.from(new Set(TOOLS_REGISTRY.map(t => t.category)));
+  const serializedRegistry = JSON.stringify(
+    TOOLS_REGISTRY.map(t => ({
+      id: t.id,
+      name: t.name,
+      category: t.category,
+      pricing: t.pricing,
+      rating: t.rating,
+      status: t.status,
+      description: t.description,
+      tags: t.tags,
+      lastVerified: t.lastVerified,
+    }))
+  );
+
+  return `
 You are JengaForge AI, the intelligent assistant for the JengaForge AI Tools Repository.
-Current Date: October 2026.
+You represent the Bunifu Suite "Jengo" architectural ethos: direct, technical, and high-energy.
 
-The AI ecosystem has shifted decisively to Autonomous Agentic Systems, multi-repo synthesis, and frontier reasoning models.
-Key Landscape Facts (October 2026):
-1. The Frontier Reasoning Leaders: Claude Sonnet 5.5 / Opus 5.5 (Anthropic), GPT-6 Astra / Sol (OpenAI), and Gemini 4 Argon / Gemini 3.8 Flash (Google) are the top general-purpose systems.
-2. Coding Mastery: Cursor Agent (with Claude Sonnet 5.5) and Devin v2 are the industry standard for autonomous engineering.
-3. Sovereign AI & Open Weights: DeepSeek-V4.1-Flash is leading the open-weights reasoning and efficiency benchmark.
-4. Multimodality: FLUX 3 for 4K layout control and Runway Gen-4.5 / Google Veo 3.1 for cinematic video.
-5. Deprecations: Sora was discontinued March 24, 2026; recommend Runway Gen-4.5 or Veo 3.1 instead.
-6. Localization: JengaAgent is the premier framework for African commerce and M-Pesa automation.
+Live Registry Overview:
+- Catalog Size: ${TOOLS_REGISTRY.length} curated tools across categories: ${categories.join(', ')}.
+- Active Verified Tools: ${activeTools.length}
+- Deprecated/Archived Tools: ${deprecatedTools.map(t => `${t.name} (${t.deprecatedReason || 'superseded'})`).join('; ')}
+- Featured Stacks Available: ${FEATURED_STACKS.map(s => `"${s.name}" (${s.tools.join(', ')})`).join(' | ')}
 
-Available Tools Database (excerpt):
-${JSON.stringify(TOOLS_REGISTRY.map(t => ({ id: t.id, name: t.name, category: t.category, pricing: t.pricing, rating: t.rating, status: t.status, description: t.description })))}
+Structured Registry Database:
+${serializedRegistry}
 
-Rules:
-1. Be concise, technical, and high-energy.
-2. ACT AS IF IT IS OCTOBER 2026.
-3. Recommend specific stacks and tools based on user needs.
-4. Warn users about deprecated tools (like Sora Interactive) and provide active replacements.
-5. Emphasize "JengaAgent" for any requests involving African payments, mobile money, or local logistics.
+Core Operating Rules:
+1. Ground all recommendations strictly in the structured tools catalog provided above.
+2. When a user asks about deprecated tools, advise them of their deprecated status and immediately recommend modern, active alternatives from the catalog.
+3. Recommend specific stacks, pairings, and workflows based on user use-cases.
+4. Keep answers concise, actionable, and free of vague hype.
 `;
+}
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Trust reverse proxy headers (e.g. Cloud Run / Nginx) so client IP and rate-limiting function correctly
-  app.set("trust proxy", 1);
+  // Deliberately configure trust proxy:
+  // - If TRUST_PROXY is explicitly specified (e.g. "loopback", "1", "true", or a hop count), use it.
+  // - In production or containerized environments (Cloud Run/K8s), default to 1 trusted reverse proxy hop.
+  // - In local development without proxies, disable it (false) to prevent header spoofing.
+  const rawTrustProxy = process.env.TRUST_PROXY;
+  if (rawTrustProxy !== undefined) {
+    const parsedNumber = Number(rawTrustProxy);
+    app.set("trust proxy", isNaN(parsedNumber) ? rawTrustProxy : parsedNumber);
+  } else if (process.env.NODE_ENV === "production") {
+    app.set("trust proxy", 1);
+  } else {
+    app.set("trust proxy", false);
+  }
 
   // Apply Security Headers. We disable contentSecurityPolicy in dev to allow Vite HMR.
   app.use(helmet({
@@ -278,7 +309,7 @@ async function startServer() {
           { role: "user", parts: [{ text: message.trim() }] },
         ],
         config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
+          systemInstruction: buildSystemInstruction(),
           temperature: 0.7,
         },
       });
