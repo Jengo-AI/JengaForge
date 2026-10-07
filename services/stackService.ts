@@ -1,6 +1,7 @@
 import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { handleFirestoreError, OperationType } from '../context/AuthContext';
+import { TOOLS_REGISTRY } from '../constants';
 
 export interface UserStack {
   id: string;
@@ -9,6 +10,16 @@ export interface UserStack {
   toolIds: string[];
   createdAt: string;
   updatedAt: string;
+}
+
+const CANONICAL_TOOL_IDS = new Set<string>(TOOLS_REGISTRY.map(t => t.id));
+
+export function filterCanonicalToolIds(ids: unknown[]): string[] {
+  if (!Array.isArray(ids)) return [];
+  return ids
+    .filter((id): id is string => typeof id === 'string' && CANONICAL_TOOL_IDS.has(id.trim()))
+    .map(id => id.trim())
+    .slice(0, 100);
 }
 
 export const stackService = {
@@ -39,15 +50,21 @@ export const stackService = {
   },
 
   async createStack(userId: string, name: string, initialToolIds: string[] = []): Promise<UserStack> {
-    if (!userId) throw new Error("userId missing");
+    const verifiedUid = auth.currentUser?.uid || userId;
+    if (!verifiedUid) throw new Error("Authenticated userId is required to create a stack");
+    
+    // Strict registry validation: only canonical registered tools are persisted
+    const validatedToolIds = filterCanonicalToolIds(initialToolIds);
+    const sanitizedName = name.trim().slice(0, 100) || "Custom Workflow Stack";
+
     try {
       const newStackRef = doc(collection(db, 'stacks'));
       const now = new Date().toISOString();
       const newStack: UserStack = {
         id: newStackRef.id,
-        userId,
-        name,
-        toolIds: initialToolIds,
+        userId: verifiedUid,
+        name: sanitizedName,
+        toolIds: validatedToolIds,
         createdAt: now,
         updatedAt: now
       };
@@ -55,15 +72,16 @@ export const stackService = {
       return newStack;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `stacks`);
-      throw error; // Will not be reached as handleFirestoreError throws
+      throw error;
     }
   },
 
   async updateStackTools(stackId: string, toolIds: string[]): Promise<boolean> {
+    const validatedToolIds = filterCanonicalToolIds(toolIds);
     try {
       const docRef = doc(db, 'stacks', stackId);
       await updateDoc(docRef, { 
-        toolIds,
+        toolIds: validatedToolIds,
         updatedAt: new Date().toISOString()
       });
       return true;

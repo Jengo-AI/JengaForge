@@ -34,9 +34,17 @@
             "type": "string"
           },
           "description": "Array of tool IDs saved by the user."
+        },
+        "masteryLevel": {
+          "type": "number",
+          "description": "User mastery level computed server-side."
+        },
+        "stacksCreated": {
+          "type": "number",
+          "description": "Number of stacks created by the user."
         }
       },
-      "required": ["id", "name", "email", "avatar", "joinedAt", "savedToolIds"]
+      "required": ["id", "name", "email", "avatar", "joinedAt", "savedToolIds", "masteryLevel", "stacksCreated"]
     },
     "Stack": {
       "title": "Stack",
@@ -60,7 +68,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Array of tool IDs in this stack."
+          "description": "Array of canonical tool IDs in this stack."
         },
         "createdAt": {
           "type": "string",
@@ -110,9 +118,87 @@
           "type": "string",
           "format": "date-time",
           "description": "ISO 8601 timestamp of review creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of review update."
         }
       },
-      "required": ["toolId", "userId", "userName", "userAvatar", "rating", "text", "createdAt"]
+      "required": ["toolId", "userId", "userName", "rating", "text", "createdAt"]
+    },
+    "ToolSubmission": {
+      "title": "ToolSubmission",
+      "description": "A community-submitted AI tool awaiting moderation.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Normalized identifier of the proposed tool."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the tool."
+        },
+        "category": {
+          "type": "string",
+          "description": "Tool category."
+        },
+        "pricing": {
+          "type": "string",
+          "description": "Pricing model (Free, Freemium, Paid, Enterprise)."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the tool."
+        },
+        "websiteUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "Public URL of the tool website."
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tags associated with the tool."
+        },
+        "submittedBy": {
+          "type": "string",
+          "description": "The verified UID of the submitter."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING_REVIEW", "APPROVED", "REJECTED"],
+          "description": "Moderation status."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Submission creation timestamp."
+        }
+      },
+      "required": ["id", "name", "category", "pricing", "description", "websiteUrl", "tags", "submittedBy", "status", "createdAt"]
+    },
+    "ToolUpvote": {
+      "title": "ToolUpvote",
+      "description": "A verified user upvote for a tool.",
+      "type": "object",
+      "properties": {
+        "toolId": {
+          "type": "string",
+          "description": "The ID of the upvoted tool."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the voter."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of the vote."
+        }
+      },
+      "required": ["toolId", "userId", "createdAt"]
     }
   },
   "firestore": {
@@ -133,6 +219,18 @@
         "$ref": "#/entities/Review"
       },
       "description": "Stores user reviews for AI tools. Any user can read, authenticated users can create."
+    },
+    "toolSubmissions/{submissionId}": {
+      "schema": {
+        "$ref": "#/entities/ToolSubmission"
+      },
+      "description": "Stores community submissions queued for moderation. Submitter must be authenticated."
+    },
+    "toolUpvotes/{voteId}": {
+      "schema": {
+        "$ref": "#/entities/ToolUpvote"
+      },
+      "description": "Stores persistent user upvotes with deterministic IDs {toolId}_{userId}."
     }
   }
 }

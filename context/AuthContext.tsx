@@ -25,16 +25,11 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-    },
-    operationType,
-    path
+  const errMessage = error instanceof Error ? error.message : String(error);
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn(`[Firestore ${operationType.toUpperCase()}] ${path || 'unknown'}:`, errMessage);
   }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  throw new Error("Unable to complete database request. Please check permissions and try again.");
 }
 
 interface AuthContextType {
@@ -47,6 +42,7 @@ interface AuthContextType {
   openAuthModal: () => void;
   closeAuthModal: () => void;
   isAuthReady: boolean;
+  authError: Error | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,10 +52,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [authError, setAuthError] = useState<Error | null>(null);
-
-  if (authError) {
-    throw authError; // Throw during render so ErrorBoundary catches it
-  }
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -157,13 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         allowedUpdates.avatar = updates.avatar.trim().slice(0, 2000);
       }
       if (Array.isArray(updates.savedToolIds)) {
-        allowedUpdates.savedToolIds = updates.savedToolIds.slice(0, 500);
-      }
-      if (typeof updates.masteryLevel === 'number' && updates.masteryLevel >= 1) {
-        allowedUpdates.masteryLevel = updates.masteryLevel;
-      }
-      if (typeof updates.stacksCreated === 'number' && updates.stacksCreated >= 0) {
-        allowedUpdates.stacksCreated = updates.stacksCreated;
+        allowedUpdates.savedToolIds = updates.savedToolIds.filter(id => typeof id === 'string').slice(0, 500);
       }
 
       if (Object.keys(allowedUpdates).length === 0) return;
@@ -216,7 +202,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider value={{ 
       user, login, updateProfile, logout, toggleSavedTool, 
-      isAuthModalOpen, openAuthModal, closeAuthModal, isAuthReady
+      isAuthModalOpen, openAuthModal, closeAuthModal, isAuthReady, authError
     }}>
       {children}
     </AuthContext.Provider>

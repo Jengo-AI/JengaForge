@@ -320,7 +320,7 @@ export const ComparisonPage: React.FC = () => {
               </div>
 
               <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar">
-                {['All', ToolCategory.LLM, ToolCategory.AGENT, ToolCategory.DEV].map(cat => (
+                {['All', ToolCategory.LLM, ToolCategory.AGENT, ToolCategory.DEV_TOOLS].map(cat => (
                   <button
                     key={cat}
                     onClick={() => setCategoryFilter(cat)}

@@ -1,5 +1,5 @@
-import { collection, doc, setDoc, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collection, doc, getDoc, setDoc, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
+import { db, auth } from '../firebase';
 import { handleFirestoreError, OperationType } from '../context/AuthContext';
 
 export interface Review {
@@ -11,6 +11,7 @@ export interface Review {
   rating: number; // 1-5
   text: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export const reviewService = {
@@ -32,26 +33,64 @@ export const reviewService = {
 
   /**
    * Adds or updates a review using deterministic reviewId `${userId}_${toolId}`.
-   * This naturally enforces the constraint of 1 review per user per tool at the Firestore level.
+   * Derives user identity from the authenticated session (preventing spoofing)
+   * and preserves immutable createdAt timestamp across updates.
    */
-  addReview: async (toolId: string, userId: string, userName: string, userAvatar: string | undefined, rating: number, text: string): Promise<Review | null> => {
+  addReview: async (
+    toolId: string,
+    _passedUserId: string,
+    _passedUserName: string,
+    _passedAvatar: string | undefined,
+    rating: number,
+    text: string
+  ): Promise<Review | null> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error("Authentication required to submit a review.");
+    }
+
+    const userId = currentUser.uid;
+    const userName = currentUser.displayName?.trim() || 'Verified Builder';
+    const userAvatar = currentUser.photoURL || '';
+    const reviewId = `${userId}_${toolId}`;
+    const reviewRef = doc(db, 'reviews', reviewId);
+
     try {
-      const reviewId = `${userId}_${toolId}`;
-      const newReview = {
-        toolId,
-        userId,
-        userName,
-        userAvatar: userAvatar || '',
-        rating,
-        text,
-        createdAt: new Date().toISOString()
-      };
-      
-      const reviewRef = doc(db, 'reviews', reviewId);
-      await setDoc(reviewRef, newReview);
-      return { id: reviewId, ...newReview };
+      const existingSnap = await getDoc(reviewRef);
+      const now = new Date().toISOString();
+
+      let reviewPayload: Review;
+      if (existingSnap.exists()) {
+        const existingData = existingSnap.data() as Review;
+        reviewPayload = {
+          id: reviewId,
+          toolId,
+          userId,
+          userName,
+          userAvatar,
+          rating: Math.min(5, Math.max(1, rating)),
+          text: text.trim().slice(0, 2000),
+          createdAt: existingData.createdAt || now,
+          updatedAt: now,
+        };
+      } else {
+        reviewPayload = {
+          id: reviewId,
+          toolId,
+          userId,
+          userName,
+          userAvatar,
+          rating: Math.min(5, Math.max(1, rating)),
+          text: text.trim().slice(0, 2000),
+          createdAt: now,
+          updatedAt: now,
+        };
+      }
+
+      await setDoc(reviewRef, reviewPayload);
+      return reviewPayload;
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `reviews/${userId}_${toolId}`);
+      handleFirestoreError(error, OperationType.WRITE, `reviews/${reviewId}`);
       return null;
     }
   }

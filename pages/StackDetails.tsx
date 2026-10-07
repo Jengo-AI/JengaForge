@@ -47,7 +47,7 @@ export const StackDetails: React.FC = () => {
       if (id) {
         const firestoreStack = await stackService.getStackById(id);
         if (firestoreStack) {
-          const isOwner = user?.uid === firestoreStack.userId;
+          const isOwner = user?.id === firestoreStack.userId;
           setStack({
             ...firestoreStack,
             isFeatured: false,
@@ -104,7 +104,7 @@ export const StackDetails: React.FC = () => {
     );
   }
 
-  const isOwner = !stack.isFeatured && user?.uid === stack.userId;
+  const isOwner = !stack.isFeatured && user?.id === stack.userId;
 
   return (
     <PageWrapper>

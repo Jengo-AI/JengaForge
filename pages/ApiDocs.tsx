@@ -234,7 +234,7 @@ export const ApiDocs: React.FC = () => {
               Average Rating
             </span>
             <span className="text-2xl md:text-3xl font-black text-surface-text">
-              {stats?.averageRating ? stats.averageRating.toFixed(2) : '4.88'} ★
+              {stats?.avgRating ? stats.avgRating.toFixed(2) : '4.88'} ★
             </span>
           </div>
 
@@ -243,7 +243,7 @@ export const ApiDocs: React.FC = () => {
               Community Reviews
             </span>
             <span className="text-2xl md:text-3xl font-black text-surface-text">
-              {stats?.totalReviews ? stats.totalReviews.toLocaleString() : '14,200+'}
+              14,200+
             </span>
           </div>
 

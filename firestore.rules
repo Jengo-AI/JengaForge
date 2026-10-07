@@ -12,12 +12,22 @@ service cloud.firestore {
     // Fields:
     //   - id: string (required, immutable, must match userId)
     //   - name: string (required, length < 100)
-    //   - email: string (required, valid email)
+    //   - email: string (required, valid email, immutable)
     //   - avatar: string (required, valid URL)
     //   - joinedAt: string (required, ISO 8601 date string, immutable)
-    //   - savedToolIds: list of strings (required, size < 500)
-    //   - masteryLevel: number (required, >= 1)
-    //   - stacksCreated: number (required, >= 0)
+    //   - savedToolIds: list of strings (required, size <= 500)
+    //   - masteryLevel: number (required, >= 1, immutable by client)
+    //   - stacksCreated: number (required, >= 0, immutable by client)
+    //
+    // Collection: toolSubmissions
+    // Document ID: {submissionId}
+    // Fields:
+    //   - id, name, category, pricing, description, websiteUrl, tags, submittedBy, status, createdAt
+    //
+    // Collection: toolUpvotes
+    // Document ID: {toolId}_{userId}
+    // Fields:
+    //   - toolId, userId, createdAt
     //
     // ===============================================================
 
@@ -76,13 +86,28 @@ service cloud.firestore {
     }
 
     function isValidReview(data) {
-      return hasExactFields(['toolId', 'userId', 'userName', 'userAvatar', 'rating', 'text', 'createdAt']) &&
+      return hasRequiredFields(['toolId', 'userId', 'userName', 'rating', 'text', 'createdAt']) &&
              data.userId == request.auth.uid &&
              data.toolId is string && data.toolId.size() > 0 &&
              data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
-             (data.userAvatar == "" || isValidUrl(data.userAvatar)) &&
+             (!('userAvatar' in data) || data.userAvatar == "" || isValidUrl(data.userAvatar)) &&
              data.rating is number && data.rating >= 1 && data.rating <= 5 &&
              data.text is string && data.text.size() <= 2000 &&
+             isValidDateString(data.createdAt) &&
+             (!('updatedAt' in data) || isValidDateString(data.updatedAt));
+    }
+
+    function isValidToolSubmission(data) {
+      return hasRequiredFields(['id', 'name', 'category', 'pricing', 'description', 'websiteUrl', 'tags', 'submittedBy', 'status', 'createdAt']) &&
+             data.submittedBy == request.auth.uid &&
+             data.status == "PENDING_REVIEW" &&
+             data.id is string && data.id.size() >= 2 && data.id.size() <= 80 &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 80 &&
+             data.category is string &&
+             data.pricing in ['Free', 'Freemium', 'Paid', 'Enterprise'] &&
+             data.description is string && data.description.size() >= 10 && data.description.size() <= 2000 &&
+             isValidUrl(data.websiteUrl) &&
+             data.tags is list && data.tags.size() <= 10 &&
              isValidDateString(data.createdAt);
     }
 
@@ -97,12 +122,14 @@ service cloud.firestore {
       // Owner can create their profile
       allow create: if isOwner(userId) && isValidUser(request.resource.data, userId);
       
-      // Owner can update their profile, but cannot change id, email, or joinedAt
+      // Owner can update their profile, but cannot change id, email, joinedAt, masteryLevel, or stacksCreated
       allow update: if isOwner(userId) && 
                     isValidUser(request.resource.data, userId) &&
                     request.resource.data.id == resource.data.id &&
                     request.resource.data.email == resource.data.email &&
-                    request.resource.data.joinedAt == resource.data.joinedAt;
+                    request.resource.data.joinedAt == resource.data.joinedAt &&
+                    request.resource.data.masteryLevel == resource.data.masteryLevel &&
+                    request.resource.data.stacksCreated == resource.data.stacksCreated;
                     
       allow delete: if false; // Users cannot be deleted from the client
     }
@@ -125,7 +152,7 @@ service cloud.firestore {
     }
 
     match /reviews/{reviewId} {
-      // Anyone can read a review
+      // Anyone can read reviews
       allow read: if true;
       
       // Enforce 1 review per user per tool via deterministic document ID: {userId}_{toolId}
@@ -133,7 +160,7 @@ service cloud.firestore {
                     reviewId == request.auth.uid + '_' + request.resource.data.toolId &&
                     isValidReview(request.resource.data);
       
-      // Owner can update their review without mutating userId, toolId, or creation timestamp
+      // Owner can update their review while preserving userId, toolId, and initial createdAt
       allow update: if isAuthenticated() && 
                     isOwner(resource.data.userId) &&
                     reviewId == resource.data.userId + '_' + resource.data.toolId &&
@@ -143,6 +170,36 @@ service cloud.firestore {
                     request.resource.data.createdAt == resource.data.createdAt;
                     
       allow delete: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+
+    match /toolSubmissions/{submissionId} {
+      // Authenticated creators can view their own submissions
+      allow read: if isAuthenticated() && resource.data.submittedBy == request.auth.uid;
+
+      // Only authenticated users can submit tools, locked to PENDING_REVIEW and their verified UID
+      allow create: if isAuthenticated() && 
+                    request.resource.data.submittedBy == request.auth.uid &&
+                    request.resource.data.status == "PENDING_REVIEW" &&
+                    isValidToolSubmission(request.resource.data);
+
+      allow update, delete: if false; // Moderation updates happen via administrative backend
+    }
+
+    match /toolUpvotes/{voteId} {
+      // Anyone can read vote tally documents
+      allow read: if true;
+
+      // Authenticated user can cast exactly 1 upvote per tool (voteId: {toolId}_{userId})
+      allow create: if isAuthenticated() && 
+                    voteId == request.resource.data.toolId + '_' + request.auth.uid &&
+                    request.resource.data.userId == request.auth.uid &&
+                    request.resource.data.toolId is string && request.resource.data.toolId.size() > 0 &&
+                    isValidDateString(request.resource.data.createdAt);
+
+      // User can retract their upvote
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+
+      allow update: if false;
     }
   }
 }

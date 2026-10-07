@@ -1,5 +1,7 @@
 import { Tool, ToolSubmission, PlatformStats, ToolsApiResponse } from '../types';
 import { TOOLS_REGISTRY, getToolById as getLocalToolById } from '../constants';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { db, auth } from '../firebase';
 
 export interface FetchToolsParams {
   q?: string;
@@ -115,47 +117,107 @@ export const toolService = {
   },
 
   /**
-   * Toggle upvote for a tool on the backend
+   * Check if the currently authenticated user has upvoted this tool
    */
-  upvoteTool: async (toolId: string): Promise<UpvoteResult> => {
+  hasUserUpvoted: async (toolId: string): Promise<boolean> => {
+    const user = auth.currentUser;
+    if (!user) return false;
     try {
-      const response = await fetch(`/api/v2/tools/${encodeURIComponent(toolId)}/upvote`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
-        return {
-          status: 'success',
-          action: data.action,
-          upvotes: data.upvotes,
-          toolId: data.toolId,
-          message: data.message,
-        };
-      }
-      return { status: 'error', message: data.error || 'Failed to register upvote' };
-    } catch (err: any) {
-      return { status: 'error', message: err?.message || 'Network error' };
+      const voteRef = doc(db, 'toolUpvotes', `${toolId}_${user.uid}`);
+      const snap = await getDoc(voteRef);
+      return snap.exists();
+    } catch {
+      return false;
     }
   },
 
   /**
-   * Submit a new tool to the community directory
+   * Toggle persistent upvote for a tool via Firestore (1 user + 1 tool = 1 vote).
+   * Survives restarts and scales seamlessly across multi-instance infrastructure.
+   */
+  upvoteTool: async (toolId: string): Promise<UpvoteResult> => {
+    const user = auth.currentUser;
+    if (!user) {
+      return {
+        status: 'error',
+        message: 'Please sign in to upvote tools and save them to your workflow.',
+      };
+    }
+
+    const voteDocId = `${toolId}_${user.uid}`;
+    const voteRef = doc(db, 'toolUpvotes', voteDocId);
+
+    try {
+      const voteSnap = await getDoc(voteRef);
+      if (voteSnap.exists()) {
+        await deleteDoc(voteRef);
+        return {
+          status: 'success',
+          action: 'removed',
+          toolId,
+          message: 'Upvote removed.',
+        };
+      } else {
+        await setDoc(voteRef, {
+          toolId,
+          userId: user.uid,
+          createdAt: new Date().toISOString(),
+        });
+        return {
+          status: 'success',
+          action: 'added',
+          toolId,
+          message: 'Upvote recorded.',
+        };
+      }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Database error recording upvote';
+      console.error('[toolService] Upvote error:', errMsg);
+      return { status: 'error', message: errMsg };
+    }
+  },
+
+  /**
+   * Submit a new tool to the persistent Firestore moderation queue.
+   * Derives verified user identity from Firebase Auth (preventing spoofing).
    */
   submitTool: async (submission: ToolSubmission): Promise<{ success: boolean; message: string; data?: any }> => {
+    const user = auth.currentUser;
+    if (!user) {
+      return { 
+        success: false, 
+        message: 'Authentication required: You must be signed in with your verified account to submit a tool.' 
+      };
+    }
+
+    const newId = submission.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const submissionId = `${newId}_${Date.now()}`;
+    const submissionRef = doc(db, 'toolSubmissions', submissionId);
+
+    const submissionPayload = {
+      id: newId,
+      name: submission.name.trim().slice(0, 80),
+      category: submission.category,
+      pricing: submission.pricing,
+      description: submission.description.trim().slice(0, 2000),
+      websiteUrl: submission.websiteUrl.trim().slice(0, 2000),
+      tags: Array.isArray(submission.tags) ? submission.tags.slice(0, 10) : [submission.category.toLowerCase()],
+      submittedBy: user.uid,
+      status: 'PENDING_REVIEW' as const,
+      createdAt: new Date().toISOString(),
+    };
+
     try {
-      const response = await fetch('/api/v2/tools/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(submission),
-      });
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
-        return { success: true, message: data.message, data: data.data };
-      }
-      return { success: false, message: data.error || 'Submission failed' };
-    } catch (err: any) {
-      return { success: false, message: err?.message || 'Network error submitting tool' };
+      await setDoc(submissionRef, submissionPayload);
+      return {
+        success: true,
+        message: `Tool "${submissionPayload.name}" submitted successfully to the moderation queue.`,
+        data: submissionPayload,
+      };
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Error submitting tool to moderation queue';
+      console.error('[toolService] Tool submission error:', errMsg);
+      return { success: false, message: errMsg };
     }
   },
 

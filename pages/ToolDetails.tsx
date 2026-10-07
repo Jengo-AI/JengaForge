@@ -23,7 +23,7 @@ export const ToolDetails: React.FC = () => {
   const initialTool = useMemo(() => getToolById(id || '') || null, [id]);
   const [tool, setTool] = useState<Tool | null>(initialTool);
   const [relatedTools, setRelatedTools] = useState<Tool[]>([]);
-  const [upvotes, setUpvotes] = useState<number>(initialTool?.upvotes || 0);
+  const [upvotes, setUpvotes] = useState<number>(initialTool?.reviews || 0);
   const [hasUpvoted, setHasUpvoted] = useState(false);
   const [isUpvoting, setIsUpvoting] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -42,7 +42,7 @@ export const ToolDetails: React.FC = () => {
     toolService.fetchToolById(id).then(res => {
       if (res.tool) {
         setTool(res.tool);
-        setUpvotes(res.tool.upvotes || 0);
+        setUpvotes(res.tool.reviews || 0);
       }
       if (res.related && res.related.length > 0) {
         setRelatedTools(res.related);

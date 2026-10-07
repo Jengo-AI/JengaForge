@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.8.0] - 2026-10-07
+
+### Security, Persistence & CI Hardening
+- **Authenticated & Persistent Tool Submissions (`services/toolService.ts`, `server.ts`, `firestore.rules`)**:
+  - Migrated tool submissions from ephemeral in-memory state to persistent Cloud Firestore (`toolSubmissions/{submissionId}`).
+  - Locked `submittedBy` strictly to `request.auth.uid` via Firestore security rules and client derivation.
+  - Hardened `/api/v2/tools/submit` to require valid `Authorization: Bearer <token>`, returning HTTP 401 for unauthenticated calls.
+- **Persistent Multi-Instance Upvote Architecture (`services/toolService.ts`, `firestore.rules`)**:
+  - Replaced volatile server-memory IP tracking with persistent Firestore documents (`toolUpvotes/{toolId}_{userId}`).
+  - Enforced deterministic idempotency: exactly 1 upvote per user per tool.
+- **Stack Registry Integrity & Canonical Validation (`services/stackService.ts`, `tests/security.test.ts`)**:
+  - Implemented `filterCanonicalToolIds` to validate tool lists against the canonical registry, rejecting arbitrary or malicious tool IDs.
+- **Client Metric Lockdown (`context/AuthContext.tsx`, `firestore.rules`)**:
+  - Locked `masteryLevel` and `stacksCreated` as server-controlled metrics; client mutations are rejected by Firestore security rules.
+- **Review Update Lifecycle & Verified Identity (`services/reviewService.ts`, `firestore.rules`)**:
+  - Fixed update lifecycle bug by preserving original `createdAt` and setting `updatedAt`.
+  - Verified reviewer identity directly from `auth.currentUser` rather than untrusted client payloads.
+- **CORS Policy Hardening (`server.ts`)**:
+  - Tightened origin allowlist by eliminating broad wildcard matches in favor of exact production and preview hostnames.
+- **Automated Testing & CI Pipeline (`tests/`, `.github/workflows/ci.yml`, `.github/dependabot.yml`)**:
+  - Built comprehensive automated security and data-integrity test suite (`tests/security.test.ts`, `tests/registry.test.ts`).
+  - Added `npm test` and `npm run typecheck` scripts.
+  - Updated CI to run lint, typecheck, automated test execution, dependency vulnerability audit (`npm audit`), and build.
+  - Configured automated Dependabot dependency updates.
+- **Production Efficiency & Sanitized Errors (`firebase.ts`, `context/AuthContext.tsx`)**:
+  - Removed startup test connection probe in production.
+  - Sanitized Firestore error handling to avoid leaking internal collection paths and user identifiers.
+
 ## [3.7.0] - 2026-10-04
 
 ### Security & Architecture Hardening

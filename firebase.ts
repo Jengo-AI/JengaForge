@@ -35,4 +35,6 @@ Original error: ${error.message}
     }
   }
 }
-testConnection();
+if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+  testConnection();
+}

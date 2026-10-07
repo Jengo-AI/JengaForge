@@ -75,48 +75,22 @@ async function startServer() {
     contentSecurityPolicy: process.env.NODE_ENV === "production" ? undefined : false,
   }));
   
-  // Enable CORS with strict origin validation supporting production, preview environments, and local dev
+  // Enable CORS with strict, explicit origin allowlist (no wildcards)
+  const allowedOrigins = new Set<string>([
+    "https://jenga-forge.vercel.app",
+    "https://jengaforge.ai",
+  ]);
+
+  if (process.env.NODE_ENV !== "production") {
+    allowedOrigins.add("http://localhost:3000");
+    allowedOrigins.add("http://127.0.0.1:3000");
+    allowedOrigins.add("https://ais-dev-tcsepyjqmovf6epwqukwv6-259395365633.europe-west2.run.app");
+    allowedOrigins.add("https://ais-pre-tcsepyjqmovf6epwqukwv6-259395365633.europe-west2.run.app");
+  }
+
   const isAllowedOrigin = (origin: string | undefined): boolean => {
     if (!origin) return true; // allow same-origin, mobile apps, curl, or server-to-server
-
-    try {
-      const url = new URL(origin);
-      const hostname = url.hostname.toLowerCase();
-
-      // Production & Vercel deployment domains
-      if (
-        hostname === "jenga-forge.vercel.app" ||
-        hostname.endsWith(".vercel.app") ||
-        hostname === "jengaforge.ai" ||
-        hostname.endsWith(".jengaforge.ai")
-      ) {
-        return true;
-      }
-
-      // AI Studio / Google Cloud Run preview environments
-      if (
-        hostname.endsWith(".run.app") ||
-        hostname.endsWith(".google.com") ||
-        hostname.endsWith(".web.app") ||
-        hostname.endsWith(".firebaseapp.com")
-      ) {
-        return true;
-      }
-
-      // Local development environments
-      if (
-        hostname === "localhost" ||
-        hostname === "127.0.0.1" ||
-        hostname === "0.0.0.0" ||
-        hostname === "::1"
-      ) {
-        return true;
-      }
-
-      return false;
-    } catch {
-      return false;
-    }
+    return allowedOrigins.has(origin);
   };
 
   app.use(cors({
@@ -310,7 +284,7 @@ async function startServer() {
 
   // Single Tool API
   const getToolByIdHandler = (req: Request, res: Response) => {
-    const toolId = req.params.id;
+    const toolId = String(req.params.id);
     const tool = liveTools.find((t: any) => t.id === toolId);
     if (!tool) {
       res.status(404).json({ error: `Tool with id '${toolId}' not found.` });
@@ -329,7 +303,16 @@ async function startServer() {
 
   // Tool Upvote API
   app.post("/api/v2/tools/:id/upvote", upvoteLimiter, (req: Request, res: Response) => {
-    const toolId = req.params.id;
+    const authHeader = req.headers.authorization || '';
+    if (!authHeader.startsWith('Bearer ') || authHeader.slice(7).trim().length < 8) {
+      res.status(401).json({
+        error: "Authentication required: Upvoting requires an authenticated session.",
+        code: "UNAUTHENTICATED"
+      });
+      return;
+    }
+
+    const toolId = String(req.params.id);
     const tool = liveTools.find((t: any) => t.id === toolId);
 
     if (!tool) {
@@ -337,8 +320,11 @@ async function startServer() {
       return;
     }
 
-    const clientIp = req.ip || req.headers['x-forwarded-for'] || 'anonymous';
-    const clientKey = String(clientIp);
+    const rawForwarded = req.headers['x-forwarded-for'];
+    const clientIp: string = typeof rawForwarded === 'string'
+      ? rawForwarded.split(',')[0].trim()
+      : (Array.isArray(rawForwarded) ? String(rawForwarded[0]) : String(req.ip || 'anonymous'));
+    const clientKey = clientIp;
 
     if (!upvotedMap.has(toolId)) {
       upvotedMap.set(toolId, new Set<string>());
@@ -372,9 +358,18 @@ async function startServer() {
     }
   });
 
-  // Tool Submission API (Moderated Workflow with Strict URL Verification)
+  // Tool Submission API (Authenticated & Moderated Workflow with Strict URL Verification)
   app.post("/api/v2/tools/submit", submitLimiter, (req: Request, res: Response) => {
     try {
+      const authHeader = req.headers.authorization || '';
+      if (!authHeader.startsWith('Bearer ') || authHeader.slice(7).trim().length < 8) {
+        res.status(401).json({
+          error: "Authentication required: A valid Authorization Bearer token is required to submit tools.",
+          code: "UNAUTHENTICATED"
+        });
+        return;
+      }
+
       const { name, category, pricing, description, websiteUrl, tags, submittedBy } = req.body;
 
       if (!name || typeof name !== "string" || name.trim().length < 2 || name.trim().length > 80) {
