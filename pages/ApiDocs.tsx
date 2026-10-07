@@ -7,7 +7,7 @@ import {
 import { toolService } from '../services/toolService';
 import { PlatformStats } from '../types';
 
-type EndpointId = 'tools' | 'stats' | 'health' | 'upvote' | 'submit' | 'chat';
+type EndpointId = 'tools' | 'tool' | 'stacks' | 'stats' | 'chat' | 'health';
 
 export const ApiDocs: React.FC = () => {
   const [activeEndpoint, setActiveEndpoint] = useState<EndpointId>('tools');
@@ -20,8 +20,8 @@ export const ApiDocs: React.FC = () => {
   const [querySort, setQuerySort] = useState('relevance');
   const [queryPage, setQueryPage] = useState('1');
 
-  // Live query state for upvote endpoint
-  const [upvoteToolId, setUpvoteToolId] = useState('gemini-3-1-pro');
+  // Live query state for single tool endpoint
+  const [singleToolId, setSingleToolId] = useState('cursor-agent');
 
   // Execution states
   const [isExecuting, setIsExecuting] = useState(false);
@@ -64,28 +64,14 @@ export const ApiDocs: React.FC = () => {
         if (querySort) params.set('sort', querySort);
         if (queryPage) params.set('page', queryPage);
         url = `/api/v2/tools?${params.toString()}`;
+      } else if (activeEndpoint === 'tool') {
+        url = `/api/v2/tools/${encodeURIComponent(singleToolId.trim() || 'cursor-agent')}`;
+      } else if (activeEndpoint === 'stacks') {
+        url = '/api/v2/stacks/featured';
       } else if (activeEndpoint === 'stats') {
         url = '/api/v2/stats';
       } else if (activeEndpoint === 'health') {
         url = '/api/health';
-      } else if (activeEndpoint === 'upvote') {
-        url = `/api/v2/tools/${encodeURIComponent(upvoteToolId)}/upvote`;
-        options = { method: 'POST', headers: { 'Content-Type': 'application/json' } };
-      } else if (activeEndpoint === 'submit') {
-        url = '/api/v2/tools/submit';
-        options = {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: 'Sample Agent 2026',
-            category: 'Agent',
-            pricing: 'Freemium',
-            description: 'Automated workflow orchestration agent for modern engineering teams.',
-            websiteUrl: 'https://jengaforge.dev',
-            tags: ['agent', 'automation'],
-            submittedBy: 'DevConsole User'
-          })
-        };
       } else if (activeEndpoint === 'chat') {
         url = '/api/chat';
         options = {
@@ -132,6 +118,27 @@ export const ApiDocs: React.FC = () => {
       }
     }
 
+    if (activeEndpoint === 'tool') {
+      const toolId = singleToolId.trim() || 'cursor-agent';
+      if (activeLang === 'curl') {
+        return `curl -X GET "${origin}/api/v2/tools/${toolId}" \\\n  -H "Accept: application/json"`;
+      } else if (activeLang === 'ts') {
+        return `const res = await fetch("${origin}/api/v2/tools/${toolId}");\nconst data = await res.json();\nconsole.log(data);`;
+      } else {
+        return `import requests\n\nres = requests.get("${origin}/api/v2/tools/${toolId}")\nprint(res.json())`;
+      }
+    }
+
+    if (activeEndpoint === 'stacks') {
+      if (activeLang === 'curl') {
+        return `curl -X GET "${origin}/api/v2/stacks/featured" \\\n  -H "Accept: application/json"`;
+      } else if (activeLang === 'ts') {
+        return `const res = await fetch("${origin}/api/v2/stacks/featured");\nconst data = await res.json();\nconsole.log(data.data);`;
+      } else {
+        return `import requests\n\nres = requests.get("${origin}/api/v2/stacks/featured")\nprint(res.json())`;
+      }
+    }
+
     if (activeEndpoint === 'stats') {
       if (activeLang === 'curl') {
         return `curl -X GET "${origin}/api/v2/stats"`;
@@ -139,35 +146,6 @@ export const ApiDocs: React.FC = () => {
         return `const stats = await (await fetch("${origin}/api/v2/stats")).json();\nconsole.log(stats.data);`;
       } else {
         return `import requests\n\nstats = requests.get("${origin}/api/v2/stats").json()\nprint(stats)`;
-      }
-    }
-
-    if (activeEndpoint === 'upvote') {
-      if (activeLang === 'curl') {
-        return `curl -X POST "${origin}/api/v2/tools/${upvoteToolId}/upvote" \\\n  -H "Content-Type: application/json"`;
-      } else if (activeLang === 'ts') {
-        return `const res = await fetch("${origin}/api/v2/tools/${upvoteToolId}/upvote", {\n  method: "POST"\n});\nconst result = await res.json();`;
-      } else {
-        return `import requests\n\nres = requests.post("${origin}/api/v2/tools/${upvoteToolId}/upvote")\nprint(res.json())`;
-      }
-    }
-
-    if (activeEndpoint === 'submit') {
-      const payload = JSON.stringify({
-        name: "My AI Agent",
-        category: "Agent",
-        pricing: "Freemium",
-        description: "Autonomous high-performance agent.",
-        websiteUrl: "https://example.com",
-        tags: ["agent", "llm"]
-      }, null, 2);
-
-      if (activeLang === 'curl') {
-        return `curl -X POST "${origin}/api/v2/tools/submit" \\\n  -H "Content-Type: application/json" \\\n  -d '${payload}'`;
-      } else if (activeLang === 'ts') {
-        return `const res = await fetch("${origin}/api/v2/tools/submit", {\n  method: "POST",\n  headers: { "Content-Type": "application/json" },\n  body: JSON.stringify(${payload})\n});`;
-      } else {
-        return `import requests\n\npayload = ${payload.replace(/true/g, 'True').replace(/false/g, 'False')}\nres = requests.post("${origin}/api/v2/tools/submit", json=payload)\nprint(res.json())`;
       }
     }
 
@@ -269,7 +247,7 @@ export const ApiDocs: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap gap-1 font-mono text-xs">
-              {(['tools', 'stats', 'upvote', 'submit', 'chat', 'health'] as EndpointId[]).map(ep => (
+              {(['tools', 'tool', 'stacks', 'stats', 'chat', 'health'] as EndpointId[]).map(ep => (
                 <button
                   key={ep}
                   onClick={() => {
@@ -293,18 +271,18 @@ export const ApiDocs: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3 font-mono">
                 <span className={`px-2.5 py-1 text-xs font-black uppercase tracking-widest ${
-                  ['upvote', 'submit', 'chat'].includes(activeEndpoint) 
+                  ['chat'].includes(activeEndpoint) 
                     ? 'bg-amber-500 text-dark-950' 
                     : 'bg-jenga-500 text-dark-950'
                 }`}>
-                  {['upvote', 'submit', 'chat'].includes(activeEndpoint) ? 'POST' : 'GET'}
+                  {['chat'].includes(activeEndpoint) ? 'POST' : 'GET'}
                 </span>
                 <span className="text-surface-text font-bold text-sm">
                   {activeEndpoint === 'tools' && '/api/v2/tools'}
+                  {activeEndpoint === 'tool' && `/api/v2/tools/:id`}
+                  {activeEndpoint === 'stacks' && '/api/v2/stacks/featured'}
                   {activeEndpoint === 'stats' && '/api/v2/stats'}
                   {activeEndpoint === 'health' && '/api/health'}
-                  {activeEndpoint === 'upvote' && `/api/v2/tools/:id/upvote`}
-                  {activeEndpoint === 'submit' && '/api/v2/tools/submit'}
                   {activeEndpoint === 'chat' && '/api/chat'}
                 </span>
               </div>
@@ -390,16 +368,17 @@ export const ApiDocs: React.FC = () => {
               </div>
             )}
 
-            {/* Param for Upvote */}
-            {activeEndpoint === 'upvote' && (
+            {/* Param for Single Tool */}
+            {activeEndpoint === 'tool' && (
               <div className="pt-2 font-mono text-xs">
                 <label className="text-[10px] text-surface-muted uppercase tracking-widest block mb-1">
-                  Tool ID to toggle upvote
+                  Canonical Tool ID
                 </label>
                 <input
                   type="text"
-                  value={upvoteToolId}
-                  onChange={e => setUpvoteToolId(e.target.value)}
+                  value={singleToolId}
+                  onChange={e => setSingleToolId(e.target.value)}
+                  placeholder="e.g. cursor-agent, claude-5-5-sonnet"
                   className="w-full max-w-sm bg-dark-800 border border-dark-600 px-2 py-1.5 text-surface-text text-xs"
                 />
               </div>
@@ -490,13 +469,13 @@ export const ApiDocs: React.FC = () => {
             </p>
             <ul className="list-disc pl-5 space-y-2 text-surface-text">
               <li>
-                <strong>Server-Side Proxy:</strong> All AI calls route through <code className="text-jenga-500">/api/chat</code> to ensure client tokens remain unexposed.
+                <strong>Server-Side Proxy:</strong> Public assistant requests route through <code className="text-jenga-500">/api/chat</code> powered by the server's own securely provisioned credentials.
               </li>
               <li>
-                <strong>BYOK Support:</strong> Users can optionally pass their own key via the <code className="text-jenga-500">x-gemini-api-key</code> HTTP header to bypass shared tier quotas.
+                <strong>Zero-Trust BYOK Isolation:</strong> When Bring-Your-Own-Key is enabled, client keys execute directly in the browser via the Google Gen AI SDK. User keys are strictly kept in local storage and never transmitted to backend endpoints or stored in HTTP headers.
               </li>
               <li>
-                <strong>Rate Limiting:</strong> Standard protection limits abuse to 60 requests/minute per IP across live endpoints.
+                <strong>Rate Limiting & Origin Controls:</strong> Server endpoints enforce rate limits and strict CORS origin validation to prevent automated scraping and abuse.
               </li>
             </ul>
           </div>

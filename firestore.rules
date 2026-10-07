@@ -59,6 +59,52 @@ service cloud.firestore {
       return url is string && url.size() <= 2000 && (url.matches("^https://.*") || url.matches("^http://.*"));
     }
 
+    function isSafePublicHttpsUrl(url) {
+      return url is string &&
+             url.size() >= 10 &&
+             url.size() <= 2000 &&
+             url.matches("^https://[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}(/.*)?$") &&
+             !url.matches("^https://(localhost|127\\.0\\.0\\.1|\\[::1\\]|10\\..*|192\\.168\\..*|169\\.254\\..*|172\\.(1[6-9]|2[0-9]|3[0-1])\\..*).*$") &&
+             !url.matches("^https://.*\\.(local|internal|lan|corp|test)(/.*)?$");
+    }
+
+    function canonicalToolIds() {
+      return [
+        'claude-5-5-sonnet',
+        'claude-5-5-opus',
+        'gpt-6-astra',
+        'gemini-4-argon',
+        'gemini-3-1',
+        'grok-4-7',
+        'deepseek-v4-1-flash',
+        'perplexity-ultra',
+        'flux-3-image',
+        'midjourney-v8-2',
+        'runway-gen-4-5',
+        'veo-3-1',
+        'sora-interactive',
+        'runway-gen-2',
+        'dalle-standalone',
+        'copy-ai',
+        'cursor-agent',
+        'v0-dev',
+        'elevenlabs-v3',
+        'suno-v4',
+        'deepseek-v4',
+        'devin-ai',
+        'crewai-enterprise',
+        'multion-v2',
+        'auto-gpt-v2',
+        'langsmith-v2',
+        'promptlayer-v3',
+        'google-ai-studio'
+      ];
+    }
+
+    function isCanonicalToolId(toolId) {
+      return toolId is string && toolId in canonicalToolIds();
+    }
+
     function isValidDateString(dateStr) {
       return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
     }
@@ -71,6 +117,7 @@ service cloud.firestore {
              isValidUrl(data.avatar) &&
              isValidDateString(data.joinedAt) &&
              data.savedToolIds is list && data.savedToolIds.size() <= 500 &&
+             data.savedToolIds.hasOnly(canonicalToolIds()) &&
              data.masteryLevel is number && data.masteryLevel >= 1 &&
              data.stacksCreated is number && data.stacksCreated >= 0;
     }
@@ -81,6 +128,7 @@ service cloud.firestore {
              data.userId == request.auth.uid &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.toolIds is list && data.toolIds.size() <= 100 &&
+             data.toolIds.hasOnly(canonicalToolIds()) &&
              isValidDateString(data.createdAt) &&
              isValidDateString(data.updatedAt);
     }
@@ -88,7 +136,7 @@ service cloud.firestore {
     function isValidReview(data) {
       return hasRequiredFields(['toolId', 'userId', 'userName', 'rating', 'text', 'createdAt']) &&
              data.userId == request.auth.uid &&
-             data.toolId is string && data.toolId.size() > 0 &&
+             isCanonicalToolId(data.toolId) &&
              data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
              (!('userAvatar' in data) || data.userAvatar == "" || isValidUrl(data.userAvatar)) &&
              data.rating is number && data.rating >= 1 && data.rating <= 5 &&
@@ -106,7 +154,7 @@ service cloud.firestore {
              data.category is string &&
              data.pricing in ['Free', 'Freemium', 'Paid', 'Enterprise'] &&
              data.description is string && data.description.size() >= 10 && data.description.size() <= 2000 &&
-             isValidUrl(data.websiteUrl) &&
+             isSafePublicHttpsUrl(data.websiteUrl) &&
              data.tags is list && data.tags.size() <= 10 &&
              isValidDateString(data.createdAt);
     }
@@ -189,11 +237,11 @@ service cloud.firestore {
       // Anyone can read vote tally documents
       allow read: if true;
 
-      // Authenticated user can cast exactly 1 upvote per tool (voteId: {toolId}_{userId})
+      // Authenticated user can cast exactly 1 upvote per canonical tool (voteId: {toolId}_{userId})
       allow create: if isAuthenticated() && 
                     voteId == request.resource.data.toolId + '_' + request.auth.uid &&
                     request.resource.data.userId == request.auth.uid &&
-                    request.resource.data.toolId is string && request.resource.data.toolId.size() > 0 &&
+                    isCanonicalToolId(request.resource.data.toolId) &&
                     isValidDateString(request.resource.data.createdAt);
 
       // User can retract their upvote

@@ -7,7 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.8.0] - 2026-10-07
+## [3.8.1] - 2026-10-07
+
+### Architectural Unification & Zero-Trust Hardening
+- **Decommissioned Obsolete Server Endpoints (`server.ts`)**:
+  - Completely removed legacy in-memory submission and upvote endpoints (`POST /api/v2/tools/submit`, `POST /api/v2/tools/:id/upvote`) and ephemeral trackers (`toolSubmissions`, `upvotedMap`).
+  - Unified the architecture to use authenticated, persistent Firestore operations with cryptographic user verification, eliminating the split-architecture vulnerability.
+- **Firestore Canonical Registry Enforcement (`firestore.rules`, `services/toolService.ts`)**:
+  - Embedded `canonicalToolIds()` validation in Firestore rules to guarantee that `toolUpvotes`, user `savedToolIds`, `reviews`, and custom `stacks` can only reference canonical JengaForge tools.
+  - Added CEL rule `data.toolIds.hasOnly(canonicalToolIds())` preventing arbitrary or spoofed tool IDs across all stack documents.
+- **Deep Firestore URL & SSRF Defense (`firestore.rules`, `services/securityUtils.ts`, `components/SubmitToolModal.tsx`)**:
+  - Replaced weak scheme prefix checks with RE2 regex rule `isSafePublicHttpsUrl(url)` directly in Firestore security rules.
+  - Rejects localhost, loopback, private RFC 1918 IPv4 ranges (10.*, 172.16-31.*, 192.168.*), AWS/GCP cloud metadata (169.254.169.254), and internal domain names (.local, .internal, .lan, .corp, .test), strictly requiring HTTPS.
+- **Shared Production Security Module & Test Refactoring (`services/securityUtils.ts`, `tests/security.test.ts`)**:
+  - Extracted `isValidHttpUrl`, `isAllowedOrigin`, and `sanitizeProfileUpdates` into `services/securityUtils.ts`.
+  - Replaced all duplicated test logic with direct imports of production implementations, ensuring test assertions validate the actual runtime code.
+- **Developer API Docs Realignment (`pages/ApiDocs.tsx`)**:
+  - Updated API docs and interactive console to reflect real REST endpoints (`/api/v2/tools`, `/api/v2/tools/:id`, `/api/v2/stacks/featured`, `/api/v2/stats`, `/api/chat`, `/api/health`).
+  - Updated BYOK documentation copy to accurately reflect zero-trust browser-side execution rather than deprecated header transmission.
 
 ### Security, Persistence & CI Hardening
 - **Authenticated & Persistent Tool Submissions (`services/toolService.ts`, `server.ts`, `firestore.rules`)**:

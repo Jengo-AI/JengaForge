@@ -4,6 +4,7 @@ import { X, PlusCircle, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 import { ToolCategory } from '../types';
 import { toolService } from '../services/toolService';
 import { useAuth } from '../context/AuthContext';
+import { isValidHttpUrl } from '../services/securityUtils';
 
 interface SubmitToolModalProps {
   isOpen: boolean;
@@ -37,16 +38,8 @@ export const SubmitToolModal: React.FC<SubmitToolModalProps> = ({ isOpen, onClos
       setError('Description must be at least 10 characters.');
       return;
     }
-    let isValidUrl = false;
-    try {
-      const parsed = new URL(websiteUrl.trim());
-      isValidUrl = (parsed.protocol === 'https:' || parsed.protocol === 'http:') && Boolean(parsed.hostname.includes('.'));
-    } catch {
-      isValidUrl = false;
-    }
-
-    if (!isValidUrl) {
-      setError('Please provide a valid, complete website URL (e.g. https://yourtool.com).');
+    if (!isValidHttpUrl(websiteUrl.trim(), true)) {
+      setError('A valid, publicly accessible HTTPS website URL (e.g. https://yourtool.com) is required.');
       return;
     }
 

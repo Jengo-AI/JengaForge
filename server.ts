@@ -7,6 +7,7 @@ import hpp from "hpp";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import { TOOLS_REGISTRY, FEATURED_STACKS } from "./constants";
+import { isAllowedOrigin } from "./services/securityUtils";
 
 const SYSTEM_INSTRUCTION = `
 You are JengaForge AI, the intelligent assistant for the JengaForge AI Tools Repository.
@@ -32,37 +33,6 @@ Rules:
 5. Emphasize "JengaAgent" for any requests involving African payments, mobile money, or local logistics.
 `;
 
-function isValidHttpUrl(value: string): boolean {
-  try {
-    const parsed = new URL(value);
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
-    const hostname = parsed.hostname.toLowerCase();
-    if (!hostname || hostname.includes("..")) return false;
-    // Reject loopback, link-local, private RFC 1918 / RFC 4193 IP ranges, and internal names
-    if (
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname === "::1" ||
-      hostname.startsWith("10.") ||
-      hostname.startsWith("192.168.") ||
-      hostname.startsWith("169.254.") ||
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname) ||
-      hostname.endsWith(".local") ||
-      hostname.endsWith(".internal") ||
-      hostname.endsWith(".lan") ||
-      hostname.endsWith(".corp") ||
-      hostname.endsWith(".test")
-    ) {
-      return false;
-    }
-    // Must contain a valid TLD
-    if (!hostname.includes(".")) return false;
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -75,24 +45,7 @@ async function startServer() {
     contentSecurityPolicy: process.env.NODE_ENV === "production" ? undefined : false,
   }));
   
-  // Enable CORS with strict, explicit origin allowlist (no wildcards)
-  const allowedOrigins = new Set<string>([
-    "https://jenga-forge.vercel.app",
-    "https://jengaforge.ai",
-  ]);
-
-  if (process.env.NODE_ENV !== "production") {
-    allowedOrigins.add("http://localhost:3000");
-    allowedOrigins.add("http://127.0.0.1:3000");
-    allowedOrigins.add("https://ais-dev-tcsepyjqmovf6epwqukwv6-259395365633.europe-west2.run.app");
-    allowedOrigins.add("https://ais-pre-tcsepyjqmovf6epwqukwv6-259395365633.europe-west2.run.app");
-  }
-
-  const isAllowedOrigin = (origin: string | undefined): boolean => {
-    if (!origin) return true; // allow same-origin, mobile apps, curl, or server-to-server
-    return allowedOrigins.has(origin);
-  };
-
+  // Enable CORS with strict, explicit origin allowlist
   app.use(cors({
     origin: (origin, callback) => {
       if (isAllowedOrigin(origin)) {
@@ -136,26 +89,6 @@ async function startServer() {
     message: { error: "Chat rate limit exceeded. Please wait a moment before sending another message." }
   });
 
-  // Dedicated Upvote Rate Limiter
-  const upvoteLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000, // 1 minute
-    max: 60,
-    standardHeaders: true,
-    legacyHeaders: false,
-    validate: false,
-    message: { error: "Too many upvotes submitted. Please pause before voting again." }
-  });
-
-  // Dedicated Submission Rate Limiter
-  const submitLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10,
-    standardHeaders: true,
-    legacyHeaders: false,
-    validate: false,
-    message: { error: "Submission limit reached. Please wait before submitting more tools." }
-  });
-
   // Request Telemetry & Observability Logging
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith('/api')) {
@@ -170,23 +103,8 @@ async function startServer() {
 
   app.use("/api/", apiLimiter);
 
-  // Live mutable tool registry (initialized from TOOLS_REGISTRY)
+  // Live tool registry (initialized from canonical TOOLS_REGISTRY)
   const liveTools = JSON.parse(JSON.stringify(TOOLS_REGISTRY));
-  const toolSubmissions: Array<{
-    id: string;
-    name: string;
-    category: string;
-    pricing: string;
-    description: string;
-    websiteUrl: string;
-    tags: string[];
-    submittedBy?: string;
-    createdAt: string;
-    status: "PENDING_REVIEW" | "APPROVED";
-  }> = [];
-
-  // IP/Client upvote tracker to prevent repeated double-voting
-  const upvotedMap = new Map<string, Set<string>>();
   
   // Health check endpoint
   app.get("/api/health", (req: Request, res: Response) => {
@@ -206,7 +124,6 @@ async function startServer() {
       apiVersion: "v2.0",
       registeredTools: liveTools.length,
       featuredStacks: FEATURED_STACKS.length,
-      totalSubmissions: toolSubmissions.length,
     });
   });
 
@@ -300,134 +217,6 @@ async function startServer() {
 
   app.get("/api/v2/tools/:id", getToolByIdHandler);
   app.get("/api/tools/:id", getToolByIdHandler);
-
-  // Tool Upvote API
-  app.post("/api/v2/tools/:id/upvote", upvoteLimiter, (req: Request, res: Response) => {
-    const authHeader = req.headers.authorization || '';
-    if (!authHeader.startsWith('Bearer ') || authHeader.slice(7).trim().length < 8) {
-      res.status(401).json({
-        error: "Authentication required: Upvoting requires an authenticated session.",
-        code: "UNAUTHENTICATED"
-      });
-      return;
-    }
-
-    const toolId = String(req.params.id);
-    const tool = liveTools.find((t: any) => t.id === toolId);
-
-    if (!tool) {
-      res.status(404).json({ error: `Tool with id '${toolId}' not found.` });
-      return;
-    }
-
-    const rawForwarded = req.headers['x-forwarded-for'];
-    const clientIp: string = typeof rawForwarded === 'string'
-      ? rawForwarded.split(',')[0].trim()
-      : (Array.isArray(rawForwarded) ? String(rawForwarded[0]) : String(req.ip || 'anonymous'));
-    const clientKey = clientIp;
-
-    if (!upvotedMap.has(toolId)) {
-      upvotedMap.set(toolId, new Set<string>());
-    }
-
-    const voters = upvotedMap.get(toolId)!;
-    const alreadyVoted = voters.has(clientKey);
-
-    if (alreadyVoted) {
-      voters.delete(clientKey);
-      tool.reviews = Math.max(0, tool.reviews - 1);
-      res.json({
-        status: "success",
-        action: "removed",
-        upvotes: tool.reviews,
-        toolId,
-        message: `Upvote removed for ${tool.name}.`,
-      });
-      return;
-    } else {
-      voters.add(clientKey);
-      tool.reviews += 1;
-      res.json({
-        status: "success",
-        action: "added",
-        upvotes: tool.reviews,
-        toolId,
-        message: `Upvote recorded for ${tool.name}.`,
-      });
-      return;
-    }
-  });
-
-  // Tool Submission API (Authenticated & Moderated Workflow with Strict URL Verification)
-  app.post("/api/v2/tools/submit", submitLimiter, (req: Request, res: Response) => {
-    try {
-      const authHeader = req.headers.authorization || '';
-      if (!authHeader.startsWith('Bearer ') || authHeader.slice(7).trim().length < 8) {
-        res.status(401).json({
-          error: "Authentication required: A valid Authorization Bearer token is required to submit tools.",
-          code: "UNAUTHENTICATED"
-        });
-        return;
-      }
-
-      const { name, category, pricing, description, websiteUrl, tags, submittedBy } = req.body;
-
-      if (!name || typeof name !== "string" || name.trim().length < 2 || name.trim().length > 80) {
-        res.status(400).json({ error: "Tool name is required (2-80 characters)." });
-        return;
-      }
-
-      if (!category || typeof category !== "string") {
-        res.status(400).json({ error: "Tool category is required." });
-        return;
-      }
-
-      if (!description || typeof description !== "string" || description.trim().length < 10) {
-        res.status(400).json({ error: "Tool description must be at least 10 characters." });
-        return;
-      }
-
-      if (!websiteUrl || typeof websiteUrl !== "string" || !isValidHttpUrl(websiteUrl.trim())) {
-        res.status(400).json({ 
-          error: "A valid, publicly accessible website URL starting with http:// or https:// is required (internal/local addresses are disallowed)." 
-        });
-        return;
-      }
-
-      const validPricing = ["Free", "Freemium", "Paid", "Enterprise"].includes(pricing) ? pricing : "Freemium";
-      const sanitizedTags = Array.isArray(tags) 
-        ? tags.map(t => String(t).trim().toLowerCase()).filter(Boolean).slice(0, 8)
-        : ["ai", category.toLowerCase()];
-
-      const newId = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-
-      // Content Moderation Architecture: New submissions are marked PENDING_REVIEW
-      // to prevent untrusted content injection into the canonical live registry.
-      const submission = {
-        id: newId,
-        name: name.trim(),
-        category: category.trim(),
-        pricing: validPricing,
-        description: description.trim(),
-        websiteUrl: websiteUrl.trim(),
-        tags: sanitizedTags,
-        submittedBy: submittedBy ? String(submittedBy).slice(0, 100) : "Anonymous Creator",
-        createdAt: new Date().toISOString(),
-        status: "PENDING_REVIEW" as const,
-      };
-
-      toolSubmissions.push(submission);
-
-      res.status(201).json({
-        status: "success",
-        message: `Tool "${submission.name}" submitted successfully and queued for moderation review.`,
-        data: submission,
-      });
-    } catch (err: any) {
-      console.error("Tool submission error:", err?.message || err);
-      res.status(500).json({ error: "Failed to process tool submission." });
-    }
-  });
 
   // Featured Stacks REST API
   const getStacksHandler = (req: Request, res: Response) => {

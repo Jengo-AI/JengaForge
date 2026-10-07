@@ -2,6 +2,7 @@ import { Tool, ToolSubmission, PlatformStats, ToolsApiResponse } from '../types'
 import { TOOLS_REGISTRY, getToolById as getLocalToolById } from '../constants';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
+import { isValidHttpUrl } from './securityUtils';
 
 export interface FetchToolsParams {
   q?: string;
@@ -144,6 +145,13 @@ export const toolService = {
       };
     }
 
+    if (!getLocalToolById(toolId)) {
+      return {
+        status: 'error',
+        message: `Cannot upvote tool '${toolId}': It is not part of the canonical registry.`,
+      };
+    }
+
     const voteDocId = `${toolId}_${user.uid}`;
     const voteRef = doc(db, 'toolUpvotes', voteDocId);
 
@@ -187,6 +195,13 @@ export const toolService = {
       return { 
         success: false, 
         message: 'Authentication required: You must be signed in with your verified account to submit a tool.' 
+      };
+    }
+
+    if (!submission.websiteUrl || !isValidHttpUrl(submission.websiteUrl.trim(), true)) {
+      return {
+        success: false,
+        message: 'Invalid URL: A valid, publicly accessible HTTPS website URL is required.'
       };
     }
 

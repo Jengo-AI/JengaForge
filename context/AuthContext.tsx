@@ -5,6 +5,7 @@ import { User } from '../types';
 import { auth, db, googleProvider } from '../firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { sanitizeProfileUpdates } from '../services/securityUtils';
 
 export enum OperationType {
   CREATE = 'create',
@@ -141,16 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateProfile = async (updates: Partial<User>) => {
     if (!user) return;
     try {
-      const allowedUpdates: Partial<User> = {};
-      if (typeof updates.name === 'string' && updates.name.trim().length > 0) {
-        allowedUpdates.name = updates.name.trim().slice(0, 100);
-      }
-      if (typeof updates.avatar === 'string' && updates.avatar.trim().length > 0) {
-        allowedUpdates.avatar = updates.avatar.trim().slice(0, 2000);
-      }
-      if (Array.isArray(updates.savedToolIds)) {
-        allowedUpdates.savedToolIds = updates.savedToolIds.filter(id => typeof id === 'string').slice(0, 500);
-      }
+      const allowedUpdates = sanitizeProfileUpdates(updates);
 
       if (Object.keys(allowedUpdates).length === 0) return;
 
