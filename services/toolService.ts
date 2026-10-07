@@ -1,6 +1,6 @@
 import { Tool, ToolSubmission, PlatformStats, ToolsApiResponse } from '../types';
 import { TOOLS_REGISTRY, getToolById as getLocalToolById } from '../constants';
-import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { isValidHttpUrl, sanitizeClientErrorMessage } from './securityUtils';
 
@@ -118,11 +118,12 @@ export const toolService = {
   },
 
   /**
-   * Check if the currently authenticated user has upvoted this tool
+   * Check if the currently authenticated user has upvoted this tool.
+   * Validates toolId against the canonical registry to prevent querying arbitrary document paths.
    */
   hasUserUpvoted: async (toolId: string): Promise<boolean> => {
     const user = auth.currentUser;
-    if (!user) return false;
+    if (!user || !getLocalToolById(toolId)) return false;
     try {
       const voteRef = doc(db, 'toolUpvotes', `${toolId}_${user.uid}`);
       const snap = await getDoc(voteRef);
@@ -169,7 +170,7 @@ export const toolService = {
         await setDoc(voteRef, {
           toolId,
           userId: user.uid,
-          createdAt: new Date().toISOString(),
+          createdAt: serverTimestamp(),
         });
         return {
           status: 'success',
@@ -218,7 +219,7 @@ export const toolService = {
       tags: Array.isArray(submission.tags) ? submission.tags.slice(0, 10) : [submission.category.toLowerCase()],
       submittedBy: user.uid,
       status: 'PENDING_REVIEW' as const,
-      createdAt: new Date().toISOString(),
+      createdAt: serverTimestamp(),
     };
 
     try {

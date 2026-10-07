@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.8.2] - 2026-10-07
+## [3.8.3] - 2026-10-07
+
+### Client Firestore Server Timestamp & Read Path Hardening
+- **Active `serverTimestamp()` Integration (`services/toolService.ts`, `services/reviewService.ts`)**:
+  - Replaced client-generated ISO timestamp writes (`new Date().toISOString()`) with Firestore's atomic `serverTimestamp()`, aligning application writes with security rule constraints.
+  - Added robust timestamp deserialization in `reviewService.ts` (`normalizeTimestamp`), seamlessly converting Firestore `Timestamp` objects and ISO strings for UI rendering without crashes.
+- **Canonical Registry Validation on Read Paths (`services/toolService.ts`)**:
+  - Added canonical registry verification in `hasUserUpvoted(toolId)` to prevent clients from querying arbitrary or non-canonical document references.
+- **Client Error Redaction across All Firestore Services (`services/reviewService.ts`)**:
+  - Applied `sanitizeClientErrorMessage()` to review submissions, ensuring internal Firebase error traces and paths are masked from users.
 
 ### Production Hardening & Security Pipeline Resolution
 - **Automated Registry & Security Rules Synchronization (`scripts/syncRules.ts`, `package.json`)**:

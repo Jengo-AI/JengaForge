@@ -1,6 +1,7 @@
-import { collection, doc, getDoc, setDoc, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, getDocs, query, where, orderBy, limit, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { handleFirestoreError, OperationType } from '../context/AuthContext';
+import { sanitizeClientErrorMessage } from './securityUtils';
 
 export interface Review {
   id: string;
@@ -14,6 +15,19 @@ export interface Review {
   updatedAt?: string;
 }
 
+function normalizeTimestamp(value: unknown): string {
+  if (!value) return new Date().toISOString();
+  if (value instanceof Timestamp) {
+    return value.toDate().toISOString();
+  }
+  if (typeof value === 'object' && value !== null && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return new Date(value).toISOString();
+  return new Date().toISOString();
+}
+
 export const reviewService = {
   getToolReviews: async (toolId: string): Promise<Review[]> => {
     try {
@@ -24,7 +38,15 @@ export const reviewService = {
         limit(50)
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Review));
+      return snapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...data,
+          createdAt: normalizeTimestamp(data.createdAt),
+          updatedAt: data.updatedAt ? normalizeTimestamp(data.updatedAt) : undefined,
+        } as Review;
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'reviews');
       return [];
@@ -34,7 +56,7 @@ export const reviewService = {
   /**
    * Adds or updates a review using deterministic reviewId `${userId}_${toolId}`.
    * Derives user identity from the authenticated session (preventing spoofing)
-   * and preserves immutable createdAt timestamp across updates.
+   * and preserves immutable createdAt timestamp across updates using serverTimestamp().
    */
   addReview: async (
     toolId: string,
@@ -57,12 +79,10 @@ export const reviewService = {
 
     try {
       const existingSnap = await getDoc(reviewRef);
-      const now = new Date().toISOString();
 
-      let reviewPayload: Review;
       if (existingSnap.exists()) {
-        const existingData = existingSnap.data() as Review;
-        reviewPayload = {
+        const existingData = existingSnap.data();
+        const updatePayload = {
           id: reviewId,
           toolId,
           userId,
@@ -70,11 +90,17 @@ export const reviewService = {
           userAvatar,
           rating: Math.min(5, Math.max(1, rating)),
           text: text.trim().slice(0, 2000),
-          createdAt: existingData.createdAt || now,
-          updatedAt: now,
+          createdAt: existingData.createdAt,
+          updatedAt: serverTimestamp(),
         };
+        await setDoc(reviewRef, updatePayload);
+        return {
+          ...updatePayload,
+          createdAt: normalizeTimestamp(existingData.createdAt),
+          updatedAt: new Date().toISOString(),
+        } as Review;
       } else {
-        reviewPayload = {
+        const createPayload = {
           id: reviewId,
           toolId,
           userId,
@@ -82,14 +108,18 @@ export const reviewService = {
           userAvatar,
           rating: Math.min(5, Math.max(1, rating)),
           text: text.trim().slice(0, 2000),
-          createdAt: now,
-          updatedAt: now,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
         };
+        await setDoc(reviewRef, createPayload);
+        return {
+          ...createPayload,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as Review;
       }
-
-      await setDoc(reviewRef, reviewPayload);
-      return reviewPayload;
     } catch (error) {
+      sanitizeClientErrorMessage(error, 'Unable to submit review. Please try again.');
       handleFirestoreError(error, OperationType.WRITE, `reviews/${reviewId}`);
       return null;
     }
