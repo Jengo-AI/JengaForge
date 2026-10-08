@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import { getAnalytics } from 'firebase/analytics';
+import { initializeAppCheck, ReCaptchaV3Provider, AppCheck } from 'firebase/app-check';
 import firebaseConfig from './firebase-applet-config.json';
 
 // Initialize Firebase SDK
@@ -12,6 +13,27 @@ export const db = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestore
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
+
+// Optional App Check abuse protection
+let appCheck: AppCheck | null = null;
+if (typeof window !== 'undefined') {
+  const recaptchaKey = (import.meta as any).env?.VITE_RECAPTCHA_SITE_KEY;
+  if (recaptchaKey) {
+    try {
+      if ((import.meta as any).env?.DEV) {
+        // @ts-expect-error self.FIREBASE_APPCHECK_DEBUG_TOKEN is read by the App Check SDK in dev
+        self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+      }
+      appCheck = initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider(recaptchaKey),
+        isTokenAutoRefreshEnabled: true,
+      });
+    } catch (err) {
+      console.warn('[firebase] Optional App Check initialization failed:', err);
+    }
+  }
+}
+export { appCheck };
 
 async function testConnection() {
   try {

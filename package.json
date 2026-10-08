@@ -12,7 +12,7 @@
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "sync:rules": "tsx scripts/syncRules.ts",
-    "test": "npm run sync:rules && tsx --test tests/**/*.test.ts"
+    "test": "npm run sync:rules && tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@google/genai": "^1.31.0",
@@ -33,6 +33,7 @@
     "three": "^0.183.2"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@tailwindcss/vite": "^4.2.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

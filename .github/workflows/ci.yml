@@ -37,8 +37,14 @@ jobs:
       - name: Synchronize Firestore Rules from Canonical Registry
         run: npm run sync:rules
 
-      - name: Automated Security, Rules & Regression Tests
-        run: npm test
+      - name: Set up Java for Firebase Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Automated Security, Rules & Emulator Behavioral Tests
+        run: npx --yes firebase-tools emulators:exec --only firestore "npm test"
 
       - name: Secret Scanning (Gitleaks / Token Detection)
         run: |

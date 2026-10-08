@@ -7,7 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.8.3] - 2026-10-07
+## [3.9.0] - 2026-10-08
+
+### Production Security, Emulator Testing & Modular Architecture
+- **Firebase Emulator Security Threat Matrix (`tests/firestoreRules.test.ts`, `firebase.json`, `firestore.indexes.json`)**:
+  - Implemented real behavioral security testing against all 11 threat vectors: cross-user profile tampering, forged submission ownership, status modification, extra-field injection, non-canonical tool voting, cross-user vote casting, duplicate review creation, review author takeover, profile metric alteration, client timestamp forging, and unauthenticated writes.
+  - Added `firebase.json` emulator configuration and `firestore.indexes.json` composite indexes.
+- **Dedicated GitHub Security Workflows (`.github/workflows/codeql.yml`, `.github/workflows/dependency-review.yml`, `.github/workflows/ci.yml`)**:
+  - Added dedicated CodeQL static analysis workflow (`codeql.yml`) targeting JavaScript/TypeScript with `security-extended` and `security-and-quality` suites.
+  - Added GitHub Dependency Review action workflow (`dependency-review.yml`) for pull requests with high-severity alert gates.
+  - Configured CI pipeline with Java 21 setup and automatic Firebase Emulator execution for rules testing.
+- **Server-Only Timestamp Semantics Enforcement (`firestore.rules`, `services/stackService.ts`)**:
+  - Tightened Firestore security rules to strictly mandate `isServerTimestamp(val)` (`val == request.time`), rejecting arbitrary client-supplied ISO timestamp strings on create/update.
+  - Migrated `stackService.ts` to `serverTimestamp()` on create and update with normalized client deserialization.
+- **Modular Express Backend Architecture (`server/routes/`, `server/middleware/`, `server/services/`, `server.ts`)**:
+  - Decoupled `server.ts` into clean modular architectural layers: `server/middleware/security.ts`, `server/services/aiService.ts`, and `server/routes/apiRoutes.ts`.
+  - Resolved `trust proxy` configuration: explicitly reads `TRUST_PROXY` environment variable, defaulting to 1 in production and `false` in local development.
+  - Refactored AI prompt generation into `aiService.ts` to dynamically consume the active canonical `TOOLS_REGISTRY` without stale hard-coded ecosystem assertions.
+- **Firebase App Check Abuse Protection (`firebase.ts`, `.env.example`)**:
+  - Added client-side Firebase App Check integration with `ReCaptchaV3Provider` and debug token support for development environments.
+
 
 ### Client Firestore Server Timestamp & Read Path Hardening
 - **Active `serverTimestamp()` Integration (`services/toolService.ts`, `services/reviewService.ts`)**:

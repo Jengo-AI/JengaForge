@@ -111,6 +111,10 @@ service cloud.firestore {
       return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
     }
 
+    function isServerTimestamp(fieldVal) {
+      return fieldVal == request.time;
+    }
+
     function isTimestampOrServerTimestamp(fieldVal) {
       return fieldVal == request.time || isValidDateString(fieldVal) || fieldVal is timestamp;
     }
@@ -121,7 +125,7 @@ service cloud.firestore {
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              isValidEmail(data.email) &&
              isValidUrl(data.avatar) &&
-             isValidDateString(data.joinedAt) &&
+             isTimestampOrServerTimestamp(data.joinedAt) &&
              data.savedToolIds is list && data.savedToolIds.size() <= 500 &&
              data.savedToolIds.hasOnly(canonicalToolIds()) &&
              data.masteryLevel is number && data.masteryLevel >= 1 &&
@@ -135,8 +139,8 @@ service cloud.firestore {
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.toolIds is list && data.toolIds.size() <= 100 &&
              data.toolIds.hasOnly(canonicalToolIds()) &&
-             isTimestampOrServerTimestamp(data.createdAt) &&
-             isTimestampOrServerTimestamp(data.updatedAt);
+             (isServerTimestamp(data.createdAt) || (resource != null && data.createdAt == resource.data.createdAt)) &&
+             isServerTimestamp(data.updatedAt);
     }
 
     function isValidReview(data) {
@@ -147,8 +151,8 @@ service cloud.firestore {
              (!('userAvatar' in data) || data.userAvatar == "" || isValidUrl(data.userAvatar)) &&
              data.rating is number && data.rating >= 1 && data.rating <= 5 &&
              data.text is string && data.text.size() <= 2000 &&
-             isTimestampOrServerTimestamp(data.createdAt) &&
-             (!('updatedAt' in data) || isTimestampOrServerTimestamp(data.updatedAt));
+             (isServerTimestamp(data.createdAt) || (resource != null && data.createdAt == resource.data.createdAt)) &&
+             (!('updatedAt' in data) || isServerTimestamp(data.updatedAt));
     }
 
     function isValidToolSubmission(data) {
@@ -162,7 +166,7 @@ service cloud.firestore {
              data.description is string && data.description.size() >= 10 && data.description.size() <= 2000 &&
              isSafePublicHttpsUrl(data.websiteUrl) &&
              data.tags is list && data.tags.size() <= 10 &&
-             isTimestampOrServerTimestamp(data.createdAt);
+             isServerTimestamp(data.createdAt);
     }
 
     // ===============================================================
@@ -248,7 +252,7 @@ service cloud.firestore {
                     voteId == request.resource.data.toolId + '_' + request.auth.uid &&
                     request.resource.data.userId == request.auth.uid &&
                     isCanonicalToolId(request.resource.data.toolId) &&
-                    isTimestampOrServerTimestamp(request.resource.data.createdAt);
+                    isServerTimestamp(request.resource.data.createdAt);
 
       // User can retract their upvote
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;

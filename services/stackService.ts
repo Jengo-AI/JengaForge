@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { handleFirestoreError, OperationType } from '../context/AuthContext';
 import { TOOLS_REGISTRY } from '../constants';
@@ -10,6 +10,19 @@ export interface UserStack {
   toolIds: string[];
   createdAt: string;
   updatedAt: string;
+}
+
+function normalizeTimestamp(value: unknown): string {
+  if (!value) return new Date().toISOString();
+  if (value instanceof Timestamp) {
+    return value.toDate().toISOString();
+  }
+  if (typeof value === 'object' && value !== null && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return new Date(value).toISOString();
+  return new Date().toISOString();
 }
 
 const CANONICAL_TOOL_IDS = new Set<string>(TOOLS_REGISTRY.map(t => t.id));
@@ -28,7 +41,14 @@ export const stackService = {
     try {
       const q = query(collection(db, 'stacks'), where('userId', '==', userId));
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => doc.data() as UserStack);
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          ...data,
+          createdAt: normalizeTimestamp(data.createdAt),
+          updatedAt: normalizeTimestamp(data.updatedAt),
+        } as UserStack;
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'stacks');
       return [];
@@ -40,7 +60,12 @@ export const stackService = {
       const docRef = doc(db, 'stacks', stackId);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        return docSnap.data() as UserStack;
+        const data = docSnap.data();
+        return {
+          ...data,
+          createdAt: normalizeTimestamp(data.createdAt),
+          updatedAt: normalizeTimestamp(data.updatedAt),
+        } as UserStack;
       }
       return null;
     } catch (error) {
@@ -59,17 +84,23 @@ export const stackService = {
 
     try {
       const newStackRef = doc(collection(db, 'stacks'));
-      const now = new Date().toISOString();
-      const newStack: UserStack = {
+      const payload = {
         id: newStackRef.id,
         userId: verifiedUid,
         name: sanitizedName,
         toolIds: validatedToolIds,
-        createdAt: now,
-        updatedAt: now
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       };
-      await setDoc(newStackRef, newStack);
-      return newStack;
+      await setDoc(newStackRef, payload);
+      return {
+        id: newStackRef.id,
+        userId: verifiedUid,
+        name: sanitizedName,
+        toolIds: validatedToolIds,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `stacks`);
       throw error;
@@ -82,7 +113,7 @@ export const stackService = {
       const docRef = doc(db, 'stacks', stackId);
       await updateDoc(docRef, { 
         toolIds: validatedToolIds,
-        updatedAt: new Date().toISOString()
+        updatedAt: serverTimestamp(),
       });
       return true;
     } catch (error) {
