@@ -74,9 +74,9 @@ export const stackService = {
     }
   },
 
-  async createStack(userId: string, name: string, initialToolIds: string[] = []): Promise<UserStack> {
-    const verifiedUid = auth.currentUser?.uid || userId;
-    if (!verifiedUid) throw new Error("Authenticated userId is required to create a stack");
+  async createStack(name: string, initialToolIds: string[] = []): Promise<UserStack> {
+    const verifiedUid = auth.currentUser?.uid;
+    if (!verifiedUid) throw new Error("Authenticated session is required to create a stack");
     
     // Strict registry validation: only canonical registered tools are persisted
     const validatedToolIds = filterCanonicalToolIds(initialToolIds);

@@ -58,7 +58,7 @@ export const Stacks: React.FC = () => {
     
     setIsCreating(true);
     try {
-      const newStack = await stackService.createStack(user.id, newStackName);
+      const newStack = await stackService.createStack(newStackName);
       setStacks([...stacks, newStack]);
       setNewStackName('');
       setIsCreateModalOpen(false);

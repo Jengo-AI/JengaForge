@@ -102,7 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const { stackService } = await import('../services/stackService');
                 for (const stack of parsed) {
                   if (stack?.name) {
-                    await stackService.createStack(firebaseUser.uid, stack.name, stack.toolIds || stack.tools || []);
+                    await stackService.createStack(stack.name, stack.toolIds || stack.tools || []);
                   }
                 }
               }

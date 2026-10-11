@@ -69,7 +69,7 @@ export const StackDetails: React.FC = () => {
     setIsCopying(true);
     
     // Create new stack for the current user matching the name
-    const newStack = await stackService.createStack(user.id, `${stack.name} (Copy)`);
+    const newStack = await stackService.createStack(`${stack.name} (Copy)`);
     if (newStack) {
       // Add tools
       await stackService.updateStackTools(newStack.id, stack.toolIds);

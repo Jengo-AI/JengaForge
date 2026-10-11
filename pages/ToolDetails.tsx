@@ -165,7 +165,7 @@ export const ToolDetails: React.FC = () => {
     
     setIsCreatingStack(true);
     try {
-      const newStack = await stackService.createStack(user.id, newStackName, [tool.id]);
+      const newStack = await stackService.createStack(newStackName, [tool.id]);
       setUserStacks([...userStacks, newStack]);
       setSaveStatus(`Created "${newStackName}" & Added Tool`);
     } catch (error: any) {
