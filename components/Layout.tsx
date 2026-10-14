@@ -57,6 +57,7 @@ const Header: React.FC<HeaderProps> = ({ onOpenShare, onOpenSearch }) => {
         {/* Navigation Links */}
         <nav className="hidden lg:flex items-center gap-6 font-mono uppercase tracking-[0.05rem] text-[12px] font-medium shrink-0">
           <Link to="/" className={isActive('/')}>Explore</Link>
+          <Link to="/starter-stacks" className={isActive('/starter-stacks')}>Starter Stacks</Link>
           <Link to="/stacks" className={isActive('/stacks')}>Stacks</Link>
           <Link to="/compare" className={isActive('/compare')}>Compare</Link>
         </nav>
@@ -186,6 +187,7 @@ const Header: React.FC<HeaderProps> = ({ onOpenShare, onOpenSearch }) => {
             <span>Search Tools & Stacks</span>
           </button>
           <Link to="/" className="block text-surface-text py-2 hover:text-jenga-500" onClick={() => setIsMenuOpen(false)}>Explore</Link>
+          <Link to="/starter-stacks" className="block text-surface-text py-2 hover:text-jenga-500" onClick={() => setIsMenuOpen(false)}>Starter Stacks</Link>
           <Link to="/stacks" className="block text-surface-text py-2 hover:text-jenga-500" onClick={() => setIsMenuOpen(false)}>Stacks</Link>
           <Link to="/compare" className="block text-surface-text py-2 hover:text-jenga-500" onClick={() => setIsMenuOpen(false)}>Compare</Link>
           <button

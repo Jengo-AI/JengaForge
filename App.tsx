@@ -9,6 +9,7 @@ import { Assistant } from './pages/Assistant';
 import { ToolDetails } from './pages/ToolDetails';
 import { Profile } from './pages/Profile';
 import { Stacks } from './pages/Stacks';
+import { StarterStacks } from './pages/StarterStacks';
 import { StackDetails } from './pages/StackDetails';
 import { TermsOfService } from './pages/TermsOfService';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
@@ -30,6 +31,7 @@ const AppRoutes = () => {
         <Route path="/assistant" element={<Assistant />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/stacks" element={<Stacks />} />
+        <Route path="/starter-stacks" element={<StarterStacks />} />
         <Route path="/stack/:id" element={<StackDetails />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />

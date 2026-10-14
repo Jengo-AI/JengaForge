@@ -55,6 +55,19 @@ export interface ToolStack {
   likes: number;
 }
 
+export interface StarterStack extends ToolStack {
+  tagline?: string;
+  badge?: string;
+  workflowPhase: string;
+  targetObjective: string;
+  suggestedByAI: boolean;
+  steps: {
+    phase: string;
+    toolId: string;
+    action: string;
+  }[];
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';
@@ -84,6 +97,24 @@ export interface PlatformStats {
   totalStacks: number;
   uptime: number;
   lastUpdated: string;
+}
+
+export interface WorkflowStep {
+  stepNumber: number;
+  phase: string;
+  toolId: string;
+  toolName: string;
+  roleDescription: string;
+  rationale: string;
+}
+
+export interface WorkflowSuggestion {
+  workflowTitle: string;
+  targetObjective: string;
+  estimatedComplexity: 'Lightweight' | 'Modular' | 'Enterprise Agentic';
+  steps: WorkflowStep[];
+  canonicalToolIds: string[];
+  summary: string;
 }
 
 export interface ToolsApiResponse {

@@ -54,7 +54,7 @@ export const chatWithGemini = async (message: string, history: { role: string; p
         : [];
 
       const response = await aiClient.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.8-flash',
         contents: [
           ...formattedHistory,
           { role: 'user', parts: [{ text: message.trim() }] },
@@ -108,3 +108,120 @@ export const chatWithGemini = async (message: string, history: { role: string; p
     return "Network error connecting to JengaForge AI. Please ensure the server is running or configure your personal Gemini key in Profile Settings.";
   }
 };
+
+/**
+ * AI Workflow Suggestion Service
+ * STRICT TASK CONSTRAINT: This engine is strictly limited to suggesting AI workflows
+ * composed SOLELY of tools and models available within the JengaForge repository.
+ */
+export const suggestAIWorkflow = async (prompt: string) => {
+  const byokKey = (localStorage.getItem('USER_GEMINI_API_KEY') || '').trim();
+
+  // Valid canonical tool IDs whitelist
+  const activeTools = TOOLS_REGISTRY.filter(t => t.status === "Active");
+  const validIds = new Set(activeTools.map(t => t.id));
+  const whitelistCatalog = activeTools.map(t => ({
+    id: t.id,
+    name: t.name,
+    category: t.category,
+    pricing: t.pricing,
+    rating: t.rating,
+    tags: t.tags,
+    description: t.description,
+  }));
+
+  const WORKFLOW_TASK_INSTRUCTION = `
+You are the JengaForge Workflow Synthesis Engine.
+YOUR SINGLE EXCLUSIVE TASK: You suggest step-by-step AI workflow toolchains to fulfill user project goals.
+
+ABSOLUTE BOUNDARY RULES (STRICT ENFORCEMENT):
+1. TASK CONSTRAINT: You ONLY formulate workflow suggestions and pipeline toolchains. Reject any non-workflow questions, chit-chat, unrelated coding questions, or general queries by stating you only construct AI workflows.
+2. REPOSITORY WHITELIST CONSTRAINT: You are STRICTLY FORBIDDEN from suggesting, inventing, or referencing any model or tool NOT present in the JengaForge catalog below. Every single tool in your suggested steps MUST have a 'toolId' exactly matching one of the following canonical IDs:
+[${Array.from(validIds).map(id => `"${id}"`).join(', ')}]
+3. NO EXTERNAL OR OUTSIDE TOOLS: If a tool is not in the whitelist, DO NOT use it under any circumstances. Select the best matching alternative from the whitelist.
+4. JSON STRUCTURE: You must ALWAYS respond in valid JSON format matching this schema:
+{
+  "workflowTitle": "Short descriptive title of the workflow",
+  "targetObjective": "Summary of the user goal addressed",
+  "estimatedComplexity": "Lightweight" | "Modular" | "Enterprise Agentic",
+  "steps": [
+    {
+      "stepNumber": 1,
+      "phase": "e.g. Planning & Research | Core Synthesis | Code Generation | Video Production | Quality & Review",
+      "toolId": "exact_canonical_tool_id_from_whitelist",
+      "toolName": "Exact Name from whitelist",
+      "roleDescription": "What this specific tool does in this step",
+      "rationale": "Why this specific repository tool was chosen over others"
+    }
+  ],
+  "canonicalToolIds": ["array_of_exact_canonical_tool_ids_used"],
+  "summary": "Brief 1-2 sentence overview of the end-to-end pipeline synergy"
+}
+
+ACTIVE JENGAFORGE REPOSITORY CATALOG:
+${JSON.stringify(whitelistCatalog)}
+`;
+
+  // BYOK MODE: Runs directly in client browser with user's key
+  if (byokKey) {
+    try {
+      const aiClient = new GoogleGenAI({ apiKey: byokKey });
+      const response = await aiClient.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: `Design an optimal AI workflow for the following project requirement using ONLY repository models and tools:\n"${prompt.trim()}"` }]
+          }
+        ],
+        config: {
+          systemInstruction: WORKFLOW_TASK_INSTRUCTION,
+          temperature: 0.2,
+          responseMimeType: 'application/json',
+        }
+      });
+
+      const raw = response.text || "{}";
+      const cleaned = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+
+      if (Array.isArray(parsed.steps)) {
+        parsed.steps = parsed.steps.filter((s: any) => validIds.has(s.toolId));
+        parsed.canonicalToolIds = Array.from(new Set(parsed.steps.map((s: any) => s.toolId)));
+      }
+
+      return { status: 'success', data: parsed };
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Unknown BYOK error";
+      console.error("Client BYOK Workflow Synthesis Error:", errMsg);
+      return { 
+        status: 'error', 
+        message: errMsg.includes("403") || errMsg.includes("API key not valid")
+          ? "Your personal Gemini API key appears to be invalid. Please check your Profile Settings."
+          : `BYOK Error: ${errMsg}` 
+      };
+    }
+  }
+
+  // SERVER MODE: Call backend /api/workflow/suggest
+  try {
+    const response = await fetch('/api/workflow/suggest', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prompt: prompt.trim() }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return { status: 'error', message: data?.error || 'Failed to synthesize workflow.' };
+    }
+
+    return { status: 'success', data: data.data };
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : "Unknown network error";
+    return { status: 'error', message: `Network error: ${errMsg}` };
+  }
+};
+

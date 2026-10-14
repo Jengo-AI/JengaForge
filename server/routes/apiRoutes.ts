@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { TOOLS_REGISTRY, FEATURED_STACKS } from "../../constants";
 import { chatLimiter } from "../middleware/security";
-import { generateChatResponse } from "../services/aiService";
+import { generateChatResponse, generateWorkflowSuggestion } from "../services/aiService";
 
 export const apiRouter = Router();
 
@@ -178,3 +178,51 @@ apiRouter.post("/chat", chatLimiter, async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to process chat request." });
   }
 });
+
+// Workflow Synthesis Route - strictly limited to suggesting workflows using repository tools
+apiRouter.post("/workflow/suggest", chatLimiter, async (req: Request, res: Response) => {
+  try {
+    const { prompt } = req.body;
+
+    if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
+      res.status(400).json({ error: "Workflow goal prompt is required and must be non-empty text." });
+      return;
+    }
+
+    if (prompt.length > 1000) {
+      res.status(400).json({ error: "Prompt is too long. Maximum allowed length is 1000 characters." });
+      return;
+    }
+
+    try {
+      const suggestion = await generateWorkflowSuggestion(prompt);
+      res.json({ status: "success", data: suggestion });
+    } catch (err: any) {
+      if (err.message === "SERVER_API_KEY_NOT_CONFIGURED") {
+        res.status(503).json({
+          error: "Server-side Gemini engine is not configured with an API key. You can also provide your personal key in Profile Settings.",
+          code: "SERVER_API_KEY_NOT_CONFIGURED",
+        });
+        return;
+      }
+
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("API key not valid") || errMsg.includes("403")) {
+        res.status(403).json({
+          error: "The provided Gemini API key is invalid or unauthorized.",
+          code: "INVALID_API_KEY",
+        });
+        return;
+      }
+
+      console.error("Workflow Suggest Route Error:", errMsg);
+      res.status(500).json({
+        error: "Failed to synthesize workflow suggestion. Please try again.",
+      });
+    }
+  } catch (error: any) {
+    console.error("Unhandled Workflow Controller Error:", error?.message || error);
+    res.status(500).json({ error: "Failed to process workflow synthesis request." });
+  }
+});
+

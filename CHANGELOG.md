@@ -5,7 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [4.0.0] - 2026-10-13
+
+### Strictly Bounded AI Workflow Synthesis Engine
+- **Dedicated Workflow Synthesis Feature (`components/AIWorkflowSuggester.tsx`, `services/geminiService.ts`, `server/services/aiService.ts`)**:
+  - Implemented the AI Workflow Architect powered by `gemini-3.8-flash`.
+  - Constrained the AI exclusively to suggesting multi-step AI workflow toolchains and pipeline integrations.
+  - Enforced a hard boundary preventing the AI from referencing or hallucinating any model or tool outside the JengaForge canonical repository.
+  - Added deterministic schema output (`workflowTitle`, `targetObjective`, `estimatedComplexity`, `steps`, `canonicalToolIds`, `summary`) and integrated one-click "Save As Stack" directly into authenticated Firestore workspaces.
+- **REST Workflow Endpoint & Rate Limiting (`server/routes/apiRoutes.ts`, `types.ts`)**:
+  - Added dedicated POST `/api/workflow/suggest` endpoint protected by IP rate limiting and server-side model validation.
+  - Integrated BYOK client-side execution when `USER_GEMINI_API_KEY` is present in `localStorage`.
+- **Automated Constraint Invariant Tests (`tests/e2eWorkflows.test.ts`)**:
+  - Added Subtest 5 verifying that system prompt invariants explicitly forbid non-workflow tasks and mandate 100% adherence to repository tool IDs.
 
 ## [3.9.0] - 2026-10-08
 

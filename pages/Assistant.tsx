@@ -139,6 +139,25 @@ export const Assistant: React.FC = () => {
 
             {/* Input Area */}
             <div className="p-4 bg-dark-900 border-t-4 border-dark-600">
+                <div className="flex flex-wrap gap-2 mb-3">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-surface-muted self-center">Suggest Workflow:</span>
+                    {[
+                      "Suggest full-stack coding workflow",
+                      "Suggest African fintech workflow",
+                      "Suggest video production pipeline"
+                    ].map((promptText, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => {
+                          setInput(promptText);
+                        }}
+                        className="text-[11px] font-mono px-2.5 py-1 bg-dark-800 hover:bg-dark-700 hover:border-jenga-500 border border-dark-600 text-surface-text transition-colors cursor-pointer"
+                      >
+                        ⚡ {promptText}
+                      </button>
+                    ))}
+                </div>
                 <form onSubmit={handleSend} className="relative group">
                     <input
                         type="text"

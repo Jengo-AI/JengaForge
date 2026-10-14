@@ -8,6 +8,8 @@ import { PageWrapper } from '../components/PageWrapper';
 import { useAuth } from '../context/AuthContext';
 import { stackService, UserStack } from '../services/stackService';
 
+import { AIWorkflowSuggester } from '../components/AIWorkflowSuggester';
+
 export const Stacks: React.FC = () => {
   const { user, isAuthReady, openAuthModal } = useAuth();
   const [stacks, setStacks] = useState<UserStack[]>([]);
@@ -114,16 +116,33 @@ export const Stacks: React.FC = () => {
         <p className="text-surface-muted text-lg mb-10 max-w-md mx-auto font-mono">
             You haven't built any intelligence stacks. Head to the forge to start organizing your AI arsenal.
         </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+          <Link 
+            to="/starter-stacks"
+            className="inline-flex items-center gap-2 bg-jenga-500 hover:bg-jenga-400 text-dark-950 px-8 py-4 font-black text-xl transition-all border-4 border-dark-950 shadow-[8px_8px_0px_0px_rgba(255,140,0,1)] rounded-none uppercase tracking-widest cursor-pointer"
+          >
+              <Sparkles className="w-5 h-5 text-dark-950" /> Starter Stacks
+          </Link>
           <button 
             onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center gap-2 bg-jenga-500 hover:bg-jenga-400 text-dark-950 px-8 py-4 font-black text-xl transition-all border-4 border-dark-950 shadow-[8px_8px_0px_0px_rgba(255,140,0,1)] rounded-none uppercase tracking-widest"
+            className="inline-flex items-center gap-2 bg-dark-800 hover:bg-dark-700 text-surface-text px-8 py-4 font-black text-xl transition-all border-4 border-dark-600 rounded-none uppercase tracking-widest cursor-pointer"
           >
               Create Stack <Plus className="w-6 h-6" />
           </button>
           <Link to="/" className="inline-flex items-center gap-2 bg-dark-800 hover:bg-dark-700 text-surface-text px-8 py-4 font-black text-xl transition-all border-4 border-dark-600 rounded-none uppercase tracking-widest">
               Explore Tools <ArrowRight className="w-6 h-6" />
           </Link>
+        </div>
+
+        {/* AI Workflow Synthesizer prompt for empty workspace */}
+        <div className="text-left max-w-4xl mx-auto">
+          <AIWorkflowSuggester 
+            onStackCreated={() => {
+              if (user) {
+                stackService.getUserStacks(user.id).then(setStacks);
+              }
+            }} 
+          />
         </div>
       </div>
       
@@ -190,14 +209,36 @@ export const Stacks: React.FC = () => {
   return (
     <PageWrapper>
       <div className="container mx-auto px-4 py-12 pb-32">
-      <header className="mb-16">
+      <header className="mb-12">
         <div className="inline-flex items-center gap-2 px-3 py-1 bg-dark-800 border-2 border-dark-600 rounded-none text-jenga-500 text-[10px] font-black uppercase tracking-widest mb-4 font-mono">
             <Sparkles className="w-3 h-3" />
             Workspace
         </div>
-        <h1 className="text-3xl sm:text-4xl md:text-7xl font-black text-surface-text tracking-widest uppercase">Your Intelligence Stacks</h1>
-        <p className="text-surface-muted mt-4 text-xl font-mono">Customized toolchains built for specialized outcomes.</p>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-surface-text tracking-widest uppercase">Your Intelligence Stacks</h1>
+            <p className="text-surface-muted mt-2 text-lg font-mono">Customized toolchains built for specialized outcomes.</p>
+          </div>
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="self-start md:self-auto inline-flex items-center gap-2 bg-jenga-500 hover:bg-jenga-400 text-dark-950 px-5 py-3 font-black text-sm uppercase tracking-widest transition-all border-2 border-dark-950 rounded-none cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            Manual Stack
+          </button>
+        </div>
       </header>
+
+      {/* Embedded AI Workflow Synthesizer */}
+      <div className="mb-14">
+        <AIWorkflowSuggester 
+          onStackCreated={() => {
+            if (user) {
+              stackService.getUserStacks(user.id).then(setStacks);
+            }
+          }} 
+        />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         {stacks.map((stack, index) => (

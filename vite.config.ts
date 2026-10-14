@@ -14,6 +14,19 @@ export default defineConfig(() => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
+      },
+      build: {
+        chunkSizeWarningLimit: 1200,
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              'vendor-three': ['three', '@react-three/fiber', '@react-three/drei'],
+              'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/app-check'],
+              'vendor-charts': ['recharts'],
+              'vendor-motion': ['motion/react'],
+            }
+          }
+        }
       }
     };
 });

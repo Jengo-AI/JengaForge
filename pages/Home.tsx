@@ -14,6 +14,7 @@ import { motion, useScroll, useTransform } from 'motion/react';
 import { Canvas } from '@react-three/fiber';
 import { Robot3D, ParticleField, ArchitecturalGrid } from '../components/Robot3D';
 
+import { AIWorkflowSuggester } from '../components/AIWorkflowSuggester';
 import { PageWrapper } from '../components/PageWrapper';
 
 export const Home: React.FC = () => {
@@ -411,6 +412,11 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
+      {/* Jengo — AI Workflow Architect Section */}
+      <section className="container mx-auto px-4" id="jengo">
+        <AIWorkflowSuggester />
+      </section>
+
       {/* Featured Stacks Section */}
       {FEATURED_STACKS.length > 0 && (
         <section className="bg-dark-900 py-16 border-y-4 border-dark-700 bg-diagonal-stripes">
@@ -420,9 +426,14 @@ export const Home: React.FC = () => {
                 <h2 className="text-3xl font-black uppercase tracking-widest text-surface-text mb-2">Community Stacks</h2>
                 <p className="text-surface-muted font-mono uppercase tracking-widest text-sm">Battle-tested workflows curated by top creators.</p>
             </div>
-            <Link to="/stacks" className="text-jenga-500 hover:text-jenga-400 flex items-center gap-1 font-mono font-bold uppercase tracking-widest text-sm">
-                View all <ArrowRight className="w-4 h-4" />
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link to="/starter-stacks" className="text-jenga-400 hover:text-jenga-300 flex items-center gap-1 font-mono font-bold uppercase tracking-widest text-sm bg-dark-800 px-3 py-1.5 border border-dark-600 hover:border-jenga-500">
+                  Starter Stacks <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+              <Link to="/stacks" className="text-surface-muted hover:text-surface-text flex items-center gap-1 font-mono uppercase tracking-widest text-sm">
+                  My Stacks <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

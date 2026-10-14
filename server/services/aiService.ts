@@ -46,6 +46,102 @@ Core Operating Rules:
 `;
 }
 
+/**
+ * System instruction strictly constraining the AI to ONLY suggest AI workflows
+ * using ONLY models and tools from the JengaForge repository.
+ */
+export function buildWorkflowSystemInstruction(): string {
+  const activeTools = TOOLS_REGISTRY.filter(t => t.status === "Active");
+  const toolWhitelist = activeTools.map(t => ({
+    id: t.id,
+    name: t.name,
+    category: t.category,
+    pricing: t.pricing,
+    rating: t.rating,
+    tags: t.tags,
+    description: t.description,
+  }));
+
+  const validToolIds = activeTools.map(t => t.id);
+
+  return `
+You are the JengaForge Workflow Synthesis Engine.
+YOUR SINGLE EXCLUSIVE TASK: You suggest step-by-step AI workflow toolchains to fulfill user project goals.
+
+ABSOLUTE BOUNDARY RULES (STRICT ENFORCEMENT):
+1. TASK CONSTRAINT: You ONLY formulate workflow suggestions and pipeline toolchains. Reject any non-workflow questions, chit-chat, unrelated coding questions, or general queries by stating you only construct AI workflows.
+2. REPOSITORY WHITELIST CONSTRAINT: You are STRICTLY FORBIDDEN from suggesting, inventing, or referencing any model or tool NOT present in the JengaForge catalog below. Every single tool in your suggested steps MUST have a 'toolId' exactly matching one of the following canonical IDs:
+[${validToolIds.map(id => `"${id}"`).join(', ')}]
+3. NO EXTERNAL OR OUTSIDE TOOLS: If a tool is not in the whitelist, DO NOT use it under any circumstances. Select the best matching alternative from the whitelist.
+4. JSON STRUCTURE: You must ALWAYS respond in valid JSON format matching this schema:
+{
+  "workflowTitle": "Short descriptive title of the workflow",
+  "targetObjective": "Summary of the user goal addressed",
+  "estimatedComplexity": "Lightweight" | "Modular" | "Enterprise Agentic",
+  "steps": [
+    {
+      "stepNumber": 1,
+      "phase": "e.g. Planning & Research | Core Synthesis | Code Generation | Video Production | Quality & Review",
+      "toolId": "exact_canonical_tool_id_from_whitelist",
+      "toolName": "Exact Name from whitelist",
+      "roleDescription": "What this specific tool does in this step",
+      "rationale": "Why this specific repository tool was chosen over others"
+    }
+  ],
+  "canonicalToolIds": ["array_of_exact_canonical_tool_ids_used"],
+  "summary": "Brief 1-2 sentence overview of the end-to-end pipeline synergy"
+}
+
+ACTIVE JENGAFORGE REPOSITORY CATALOG:
+${JSON.stringify(toolWhitelist)}
+`;
+}
+
+export async function generateWorkflowSuggestion(userPrompt: string): Promise<any> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("SERVER_API_KEY_NOT_CONFIGURED");
+  }
+
+  const aiClient = new GoogleGenAI({ apiKey });
+
+  const response = await aiClient.models.generateContent({
+    model: "gemini-3.8-flash",
+    contents: [
+      { 
+        role: "user", 
+        parts: [{ 
+          text: `Design an optimal AI workflow for the following project requirement using ONLY repository models and tools:\n"${userPrompt.trim()}"` 
+        }] 
+      }
+    ],
+    config: {
+      systemInstruction: buildWorkflowSystemInstruction(),
+      temperature: 0.2,
+      responseMimeType: "application/json",
+    },
+  });
+
+  const rawText = response.text || "{}";
+  let parsed: any;
+  try {
+    parsed = JSON.parse(rawText);
+  } catch {
+    // Fallback if markdown fence was included
+    const cleaned = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    parsed = JSON.parse(cleaned);
+  }
+
+  // Double check canonical enforcement: filter canonicalToolIds against actual registry
+  const validIds = new Set(TOOLS_REGISTRY.map(t => t.id));
+  if (Array.isArray(parsed.steps)) {
+    parsed.steps = parsed.steps.filter((s: any) => validIds.has(s.toolId));
+    parsed.canonicalToolIds = Array.from(new Set(parsed.steps.map((s: any) => s.toolId)));
+  }
+
+  return parsed;
+}
+
 export async function generateChatResponse(message: string, history: any[] = []): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -64,7 +160,7 @@ export async function generateChatResponse(message: string, history: any[] = [])
     : [];
 
   const response = await aiClient.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-3.8-flash",
     contents: [
       ...formattedHistory,
       { role: "user", parts: [{ text: message.trim() }] },

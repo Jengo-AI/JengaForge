@@ -1,4 +1,4 @@
-import { Tool, ToolCategory, ToolStack } from './types';
+import { Tool, ToolCategory, ToolStack, StarterStack } from './types';
 
 export const TOOLS_REGISTRY: Tool[] = [
   // --- Frontier LLMs ---
@@ -412,35 +412,108 @@ export const TOOLS_REGISTRY: Tool[] = [
   }
 ];
 
-export const FEATURED_STACKS: ToolStack[] = [
+export const STARTER_STACKS: StarterStack[] = [
   {
-    id: "stack-autonomous-dev",
-    name: "Autonomous Developer",
-    author: "JengaForge",
-    role: "Software Engineering",
-    description: "A complete autonomous software pipeline. Design UI with v0, build with Cursor & Claude Sonnet 5.5, and let Devin handle multi-repo bug-fixing.",
+    id: "starter-autonomous-fullstack",
+    name: "Autonomous Full-Stack Engineering",
+    author: "Jengo (AI Synthesized)",
+    role: "Full-Stack Software Architecture",
+    tagline: "From UI prompt to deployed, self-debugging production web app",
+    badge: "Most Cloned",
+    workflowPhase: "Software Development",
+    targetObjective: "Ship full-stack web applications with autonomous agent code generation and testing",
+    description: "Architectural pipeline leveraging v0 for frontend components, Cursor Agent & Claude Sonnet 5.5 for complex multi-file logic, and Devin v2 for autonomous bug fixing and background CI resolution.",
     tools: ["v0-dev", "cursor-agent", "claude-5-5-sonnet", "devin-ai"],
-    likes: 1240
+    likes: 1820,
+    suggestedByAI: true,
+    steps: [
+      { phase: "UI & Component Scaffolding", toolId: "v0-dev", action: "Rapid generation of responsive Tailwind React UI components" },
+      { phase: "Agentic Code Synthesis", toolId: "cursor-agent", action: "Multi-file refactoring, local codebase indexing, and fast code editing" },
+      { phase: "Deep Architectural Reasoning", toolId: "claude-5-5-sonnet", action: "Zero-shot complex algorithm design, API contract verification, and security review" },
+      { phase: "Autonomous Issue Resolution", toolId: "devin-ai", action: "End-to-end background testing, dependency migrations, and multi-repo bug fixing" }
+    ]
   },
   {
-    id: "stack-cinematic-creator",
-    name: "Cinematic Video Creator",
-    author: "JengaForge",
-    role: "Video Production",
-    description: "End-to-end 4K video storytelling. Generate consistent cinematic shots with Runway Gen-4.5 and Veo 3.1, storyboard with FLUX 3 Image, and produce emotive voiceovers with ElevenLabs.",
-    tools: ["runway-gen-4-5", "veo-3-1", "flux-3-image", "elevenlabs-v3"],
-    likes: 985
+    id: "starter-african-commerce-fintech",
+    name: "African Commerce & Mobile Money Engine",
+    author: "Jengo (AI Synthesized)",
+    role: "Fintech & Local Commerce",
+    tagline: "Localized commerce automation tailored for M-Pesa & regional logistics",
+    badge: "Regional Frontier",
+    workflowPhase: "African Commerce",
+    targetObjective: "Build, automate, and reconcile mobile money commerce with sovereign local reasoning",
+    description: "Specialized Pan-African commerce pipeline using CrewAI autonomous agents for M-Pesa transaction reconciliation, DeepSeek-V4.1-Flash for cost-effective local reasoning, and Gemini 4 Argon for financial fraud detection.",
+    tools: ["crewai-enterprise", "deepseek-v4-1-flash", "gemini-4-argon"],
+    likes: 1490,
+    suggestedByAI: true,
+    steps: [
+      { phase: "Agentic Reconciliation", toolId: "crewai-enterprise", action: "Multi-agent autonomous workers reconciling M-Pesa STK push and ledger settlement webhooks" },
+      { phase: "Sovereign Low-Latency Intelligence", toolId: "deepseek-v4-1-flash", action: "High-throughput, cost-efficient local intent routing and customer service triage" },
+      { phase: "Audit & Risk Compliance", toolId: "gemini-4-argon", action: "1M context audit of transaction records, anomaly verification, and regulatory compliance" }
+    ]
   },
   {
-    id: "stack-research-synth",
-    name: "Deep Research & Synth",
-    author: "JengaForge",
-    role: "Research & Strategy",
-    description: "Combines real-time web research with huge context reasoning. Get the latest live data with Perplexity, verify with Grok 4.7, and synthesize with Gemini 4 Argon.",
-    tools: ["perplexity-ultra", "gemini-4-argon", "grok-4-7"],
-    likes: 850
+    id: "starter-cinematic-multimedia",
+    name: "Cinematic Multimedia Studio",
+    author: "Jengo (AI Synthesized)",
+    role: "Creative Media & Video",
+    tagline: "Complete 4K visual generation, video generation, and emotive voice production",
+    badge: "Creative Powerhouse",
+    workflowPhase: "Multimedia & Design",
+    targetObjective: "Produce cinematic commercial videos and dynamic advertising assets without a physical studio",
+    description: "Studio-grade creative toolchain utilizing FLUX 3 for photorealistic visual art and layout, Runway Gen-4.5 and Veo 3.1 for cinematic video synthesis, and ElevenLabs v3 for studio vocal performance.",
+    tools: ["flux-3-image", "runway-gen-4-5", "veo-3-1", "elevenlabs-v3"],
+    likes: 1650,
+    suggestedByAI: true,
+    steps: [
+      { phase: "Concept Art & Storyboarding", toolId: "flux-3-image", action: "High-fidelity 4K image generation with precise typography and composition" },
+      { phase: "Dynamic Scene Synthesis", toolId: "runway-gen-4-5", action: "Generates high-motion cinematic sequences with strict camera trajectory control" },
+      { phase: "Ultra-Realistic Scene Continuity", toolId: "veo-3-1", action: "Google Veo 3.1 high-definition cinematic video rendering and visual consistency" },
+      { phase: "Emotive Studio Voiceovers", toolId: "elevenlabs-v3", action: "Ultra-expressive multi-lingual voice acting with human breathing and tonal nuance" }
+    ]
+  },
+  {
+    id: "starter-frontier-deep-research",
+    name: "Frontier Deep Research & Synthesis",
+    author: "Jengo (AI Synthesized)",
+    role: "Research & Intelligence",
+    tagline: "Live web citation, truth verification, and million-token synthesis",
+    badge: "Deep Reasoning",
+    workflowPhase: "Intelligence & Research",
+    targetObjective: "Exhaustive competitor intelligence, technical papers audit, and verifiable synthesis",
+    description: "Deep research stack combining Perplexity Ultra for live web grounded queries, xAI Grok 4.7 for real-time validation and bias checking, and Gemini 4 Argon for 1M token cross-document analysis.",
+    tools: ["perplexity-ultra", "grok-4-7", "gemini-4-argon"],
+    likes: 1120,
+    suggestedByAI: true,
+    steps: [
+      { phase: "Real-Time Web Grounding", toolId: "perplexity-ultra", action: "Deep citations across live scientific journals, industry news, and technical docs" },
+      { phase: "Multi-Source Verification", toolId: "grok-4-7", action: "Real-time verification, unfiltered perspective synthesis, and counter-claim testing" },
+      { phase: "Massive Corpus Synthesis", toolId: "gemini-4-argon", action: "Synthesizes multi-hundred-page research corpora into actionable executive PRDs" }
+    ]
+  },
+  {
+    id: "starter-prompt-eval-ops",
+    name: "Prompt Engineering & EvalOps",
+    author: "Jengo (AI Synthesized)",
+    role: "LLM Operations & Testing",
+    tagline: "Structured prompting, production observability, and zero-code A/B testing",
+    badge: "Ops & Observability",
+    workflowPhase: "Prompt Engineering",
+    targetObjective: "Test, benchmark, and deploy enterprise prompts with real-time tracing and telemetry",
+    description: "Production prompt engineering workflow using Google AI Studio for rapid few-shot prototyping, PromptLayer v3 for version control and A/B testing, and LangSmith for latency and hallucination tracing.",
+    tools: ["google-ai-studio", "promptlayer-v3", "langsmith-v2"],
+    likes: 890,
+    suggestedByAI: true,
+    steps: [
+      { phase: "Prompt Prototyping", toolId: "google-ai-studio", action: "Interactive experimentation with system instructions, structured output schemas, and Gemini tuning" },
+      { phase: "A/B Testing & Registry", toolId: "promptlayer-v3", action: "Prompt versioning, live traffic A/B split-testing, and non-technical prompt updates" },
+      { phase: "Production Telemetry", toolId: "langsmith-v2", action: "End-to-end token latency profiling, failure clustering, and dataset evaluation" }
+    ]
   }
 ];
+
+export const FEATURED_STACKS: ToolStack[] = STARTER_STACKS;
+
 
 export interface PromptTemplate {
   id: string;
