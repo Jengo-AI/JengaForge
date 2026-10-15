@@ -249,12 +249,29 @@ export const AmbientBackground: React.FC = () => {
         ctx.save();
         const baseAlpha = crosshairAlpha * 0.14;
 
+        // Helper to strictly clamp offsets between 0 and 1
+        const clamp01 = (val: number) => Math.max(0, Math.min(1, val));
+
         // Subtle horizontal guide line
-        const gradX = ctx.createLinearGradient(0, currentY, width, currentY);
+        const gradX = ctx.createLinearGradient(0, currentY, Math.max(1, width), currentY);
+        const startXStop = clamp01((currentX - 350) / width);
+        const midXStop = clamp01(currentX / width);
+        const endXStop = clamp01((currentX + 350) / width);
+
+        // Canvas gradients require strictly non-decreasing stop positions
+        const safeStartX = Math.min(startXStop, midXStop);
+        const safeEndX = Math.max(safeStartX, Math.min(1, Math.max(midXStop, endXStop)));
+
         gradX.addColorStop(0, 'rgba(255, 209, 0, 0)');
-        gradX.addColorStop(Math.max(0, (currentX - 350) / width), 'rgba(255, 209, 0, 0)');
-        gradX.addColorStop(Math.max(0, currentX / width), `rgba(255, 209, 0, ${baseAlpha * 1.5})`);
-        gradX.addColorStop(Math.min(1, (currentX + 350) / width), 'rgba(255, 209, 0, 0)');
+        if (safeStartX > 0 && safeStartX < 1) {
+          gradX.addColorStop(safeStartX, 'rgba(255, 209, 0, 0)');
+        }
+        if (midXStop >= safeStartX && midXStop <= safeEndX && midXStop > 0 && midXStop < 1) {
+          gradX.addColorStop(midXStop, `rgba(255, 209, 0, ${baseAlpha * 1.5})`);
+        }
+        if (safeEndX > safeStartX && safeEndX < 1) {
+          gradX.addColorStop(safeEndX, 'rgba(255, 209, 0, 0)');
+        }
         gradX.addColorStop(1, 'rgba(255, 209, 0, 0)');
 
         ctx.strokeStyle = gradX;
@@ -265,11 +282,24 @@ export const AmbientBackground: React.FC = () => {
         ctx.stroke();
 
         // Subtle vertical guide line
-        const gradY = ctx.createLinearGradient(currentX, 0, currentX, height);
+        const gradY = ctx.createLinearGradient(currentX, 0, currentX, Math.max(1, height));
+        const startYStop = clamp01((currentY - 350) / height);
+        const midYStop = clamp01(currentY / height);
+        const endYStop = clamp01((currentY + 350) / height);
+
+        const safeStartY = Math.min(startYStop, midYStop);
+        const safeEndY = Math.max(safeStartY, Math.min(1, Math.max(midYStop, endYStop)));
+
         gradY.addColorStop(0, 'rgba(255, 209, 0, 0)');
-        gradY.addColorStop(Math.max(0, (currentY - 350) / height), 'rgba(255, 209, 0, 0)');
-        gradY.addColorStop(Math.max(0, currentY / height), `rgba(255, 209, 0, ${baseAlpha * 1.5})`);
-        gradY.addColorStop(Math.min(1, (currentY + 350) / height), 'rgba(255, 209, 0, 0)');
+        if (safeStartY > 0 && safeStartY < 1) {
+          gradY.addColorStop(safeStartY, 'rgba(255, 209, 0, 0)');
+        }
+        if (midYStop >= safeStartY && midYStop <= safeEndY && midYStop > 0 && midYStop < 1) {
+          gradY.addColorStop(midYStop, `rgba(255, 209, 0, ${baseAlpha * 1.5})`);
+        }
+        if (safeEndY > safeStartY && safeEndY < 1) {
+          gradY.addColorStop(safeEndY, 'rgba(255, 209, 0, 0)');
+        }
         gradY.addColorStop(1, 'rgba(255, 209, 0, 0)');
 
         ctx.strokeStyle = gradY;

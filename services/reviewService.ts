@@ -48,7 +48,9 @@ export const reviewService = {
         } as Review;
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'reviews');
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(`[reviewService.getToolReviews] Error loading reviews for tool ${toolId}:`, error);
+      }
       return [];
     }
   },

@@ -139,8 +139,8 @@ service cloud.firestore {
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.toolIds is list && data.toolIds.size() <= 100 &&
              data.toolIds.hasOnly(canonicalToolIds()) &&
-             (isServerTimestamp(data.createdAt) || (resource != null && data.createdAt == resource.data.createdAt)) &&
-             isServerTimestamp(data.updatedAt);
+             (isTimestampOrServerTimestamp(data.createdAt) || (resource != null && data.createdAt == resource.data.createdAt)) &&
+             isTimestampOrServerTimestamp(data.updatedAt);
     }
 
     function isValidReview(data) {

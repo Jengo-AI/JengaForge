@@ -178,6 +178,7 @@ ${JSON.stringify(whitelistCatalog)}
           systemInstruction: WORKFLOW_TASK_INSTRUCTION,
           temperature: 0.2,
           responseMimeType: 'application/json',
+          maxOutputTokens: 1500,
         }
       });
 

@@ -119,6 +119,7 @@ export async function generateWorkflowSuggestion(userPrompt: string): Promise<an
       systemInstruction: buildWorkflowSystemInstruction(),
       temperature: 0.2,
       responseMimeType: "application/json",
+      maxOutputTokens: 1500,
     },
   });
 

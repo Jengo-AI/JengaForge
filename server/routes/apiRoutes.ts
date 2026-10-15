@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { TOOLS_REGISTRY, FEATURED_STACKS } from "../../constants";
-import { chatLimiter } from "../middleware/security";
+import { chatLimiter, workflowSynthesisLimiter } from "../middleware/security";
 import { generateChatResponse, generateWorkflowSuggestion } from "../services/aiService";
 
 export const apiRouter = Router();
@@ -180,7 +180,7 @@ apiRouter.post("/chat", chatLimiter, async (req: Request, res: Response) => {
 });
 
 // Workflow Synthesis Route - strictly limited to suggesting workflows using repository tools
-apiRouter.post("/workflow/suggest", chatLimiter, async (req: Request, res: Response) => {
+apiRouter.post("/workflow/suggest", workflowSynthesisLimiter, async (req: Request, res: Response) => {
   try {
     const { prompt } = req.body;
 

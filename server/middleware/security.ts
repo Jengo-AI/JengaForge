@@ -67,6 +67,15 @@ export const chatLimiter = rateLimit({
   message: { error: "Chat rate limit exceeded. Please wait a moment before sending another message." }
 });
 
+export const workflowSynthesisLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 10, // 10 workflow generations per minute per IP to prevent Gemini cost amplification & abuse
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: false,
+  message: { error: "AI workflow synthesis rate limit reached. Please wait a moment before synthesizing another workflow." }
+});
+
 export function requestLogger(req: Request, res: Response, next: NextFunction) {
   if (req.path.startsWith('/api')) {
     const start = Date.now();
