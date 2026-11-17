@@ -86,7 +86,7 @@ export interface ToolSubmission {
   tags: string[];
   submittedBy?: string;
   createdAt?: string;
-  status?: "PENDING_REVIEW" | "APPROVED";
+  status?: "PENDING_REVIEW" | "APPROVED" | "REJECTED";
 }
 
 export interface PlatformStats {
@@ -126,13 +126,4 @@ export interface ToolsApiResponse {
     limit: number;
     totalPages: number;
   };
-}
-
-declare global {
-  interface Window {
-    aistudio?: {
-      hasSelectedApiKey: () => Promise<boolean>;
-      openSelectKey: () => Promise<void>;
-    };
-  }
 }

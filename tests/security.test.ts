@@ -145,4 +145,72 @@ test('Security: Profile Mutation Sanitization (Production Implementation)', asyn
     assert.deepEqual(sanitizeProfileUpdates('malicious string' as any), {});
     assert.deepEqual(sanitizeProfileUpdates(123 as any), {});
   });
+
+  await t.test('rejects insecure or local avatar URLs while accepting valid HTTPS avatars', () => {
+    assert.equal(sanitizeProfileUpdates({ avatar: 'http://example.com/a.png' }).avatar, undefined);
+    assert.equal(sanitizeProfileUpdates({ avatar: 'https://localhost:3000/a.png' }).avatar, undefined);
+    assert.equal(sanitizeProfileUpdates({ avatar: 'javascript:alert(1)' }).avatar, undefined);
+    assert.equal(sanitizeProfileUpdates({ avatar: 'https://127.0.0.1/avatar.png' }).avatar, undefined);
+    assert.equal(
+      sanitizeProfileUpdates({ avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=alice' }).avatar,
+      'https://api.dicebear.com/9.x/avataaars/svg?seed=alice'
+    );
+  });
+});
+
+test('Security: Proxy Trust & Rate Limiter Forwarded Header Resolution', async (t) => {
+  const { parseForwardedForIp, configureSecurity, apiLimiter } = await import('../server/middleware/security');
+  const expressModule = await import('express');
+  const express = expressModule.default;
+
+  await t.test('parses valid IPv4, IPv4:port, and bracketed IPv6 tokens from RFC 7239 Forwarded headers', () => {
+    assert.equal(parseForwardedForIp('for=203.0.113.195;proto=https;by=203.0.113.43'), '203.0.113.195');
+    assert.equal(parseForwardedForIp('for="198.51.100.17:4711";proto=https'), '198.51.100.17');
+    assert.equal(parseForwardedForIp('for="[2001:db8:cafe::17]:4711";proto=https'), '2001:db8:cafe::17');
+    assert.equal(parseForwardedForIp('for=10.0.0.1, for=203.0.113.60;proto=https'), '203.0.113.60');
+    assert.equal(parseForwardedForIp('for=unknown, for=_hidden'), null);
+    assert.equal(parseForwardedForIp(undefined), null);
+  });
+
+  await t.test('handles X-Forwarded-For and Forwarded headers through apiLimiter without ValidationErrors', async () => {
+    const app = express();
+    configureSecurity(app);
+    assert.equal(app.get('trust proxy'), 1);
+
+    app.use('/api', apiLimiter);
+    app.get('/api/ping', (_req, res) => {
+      res.status(200).json({ ok: true });
+    });
+
+    const server = await new Promise<import('http').Server>((resolve) => {
+      const s = app.listen(0, '127.0.0.1', () => resolve(s));
+    });
+
+    const loggedErrors: unknown[][] = [];
+    const originalConsoleError = console.error;
+    console.error = (...args: unknown[]) => {
+      loggedErrors.push(args);
+    };
+
+    try {
+      const address = server.address() as { port: number };
+      const res = await fetch(`http://127.0.0.1:${address.port}/api/ping`, {
+        headers: {
+          'X-Forwarded-For': '203.0.113.42',
+          'Forwarded': 'for=203.0.113.42;proto=https',
+        },
+      });
+      assert.equal(res.status, 200);
+      const body = await res.json();
+      assert.equal(body.ok, true);
+
+      const validationErrors = loggedErrors.filter(args =>
+        args.some(arg => String(arg).includes('ValidationError') || String(arg).includes('ERR_ERL_'))
+      );
+      assert.equal(validationErrors.length, 0, 'Expected zero express-rate-limit ValidationErrors');
+    } finally {
+      console.error = originalConsoleError;
+      await new Promise<void>((resolve, reject) => server.close(err => (err ? reject(err) : resolve())));
+    }
+  });
 });

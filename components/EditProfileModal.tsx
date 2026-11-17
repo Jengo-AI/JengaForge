@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, User, Link as LinkIcon, Loader2, Key } from 'lucide-react';
+import { X, User, Link as LinkIcon, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
+import { isValidHttpUrl } from '../services/securityUtils';
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -12,14 +13,14 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
   const { user, updateProfile } = useAuth();
   const [name, setName] = useState(user?.name || '');
   const [avatar, setAvatar] = useState(user?.avatar || '');
-  const [apiKey, setApiKey] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setName(user?.name || '');
       setAvatar(user?.avatar || '');
-      setApiKey(localStorage.getItem('USER_GEMINI_API_KEY') || '');
+      setErrorMsg(null);
     }
   }, [isOpen, user]);
 
@@ -61,17 +62,27 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg(null);
+
+    const trimmedName = name.trim();
+    const trimmedAvatar = avatar.trim();
+
+    if (!trimmedName) {
+      setErrorMsg('Display name cannot be empty.');
+      return;
+    }
+
+    if (trimmedAvatar && !isValidHttpUrl(trimmedAvatar, true)) {
+      setErrorMsg('Avatar URL must be a valid public HTTPS image link.');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      if (apiKey.trim()) {
-        localStorage.setItem('USER_GEMINI_API_KEY', apiKey.trim());
-      } else {
-        localStorage.removeItem('USER_GEMINI_API_KEY');
-      }
-      await updateProfile({ name, avatar });
+      await updateProfile({ name: trimmedName, avatar: trimmedAvatar || undefined });
       onClose();
     } catch (error) {
-      console.error("Failed to update profile", error);
+      setErrorMsg(error instanceof Error ? error.message : 'Failed to update profile.');
     } finally {
       setIsLoading(false);
     }
@@ -113,6 +124,13 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                 <p className="text-surface-muted text-sm font-mono">Update your personal information</p>
               </div>
 
+              {errorMsg && (
+                <div className="mb-4 p-3 bg-red-950/80 border-2 border-red-500 text-red-400 text-xs font-mono flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-xs font-black text-surface-muted uppercase tracking-widest ml-1 font-mono">Full Name</label>
@@ -121,6 +139,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                     <input
                       type="text"
                       required
+                      maxLength={99}
                       className="w-full bg-dark-900 border-2 border-dark-600 rounded-none py-3 pl-11 pr-4 text-surface-text focus:ring-2 focus:ring-jenga-500 outline-none transition-all font-mono"
                       placeholder="Jane Doe"
                       value={name}
@@ -141,22 +160,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                       onChange={e => setAvatar(e.target.value)}
                     />
                   </div>
-                  <p className="text-xs text-surface-muted ml-1 font-mono">Leave blank to use default avatar</p>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-surface-muted uppercase tracking-widest ml-1 font-mono">Gemini API Key</label>
-                  <div className="relative">
-                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                    <input
-                      type="password"
-                      className="w-full bg-dark-900 border-2 border-dark-600 rounded-none py-3 pl-11 pr-4 text-surface-text focus:ring-2 focus:ring-jenga-500 outline-none transition-all font-mono"
-                      placeholder="AIzaSy..."
-                      value={apiKey}
-                      onChange={e => setApiKey(e.target.value)}
-                    />
-                  </div>
-                  <p className="text-xs text-surface-muted ml-1 font-mono">Required for AI Assistant features</p>
+                  <p className="text-xs text-surface-muted ml-1 font-mono">Must be a public HTTPS URL. Leave blank to keep existing avatar.</p>
                 </div>
 
                 <button

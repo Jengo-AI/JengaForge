@@ -441,9 +441,8 @@ export const SocialShareModal: React.FC<SocialShareModalProps> = ({
             {/* Modal Footer */}
             <div className="p-4 border-t border-dark-700 bg-dark-850 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                 <span className="text-[10px] font-mono text-surface-muted uppercase tracking-widest">
-                  Live Social Meta Ready
+                  OpenGraph Meta Ready
                 </span>
               </div>
               <button

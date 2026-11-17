@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { TOOLS_REGISTRY } from '../constants';
 import { ComparisonChart } from '../components/ComparisonChart';
 import { Tool, ToolCategory } from '../types';
@@ -8,9 +9,22 @@ import { motion, AnimatePresence } from 'motion/react';
 import { PageWrapper } from '../components/PageWrapper';
 
 export const ComparisonPage: React.FC = () => {
-  // Initialize with two distinct tools for demo purposes
-  const [selectedTools, setSelectedTools] = useState<Tool[]>([TOOLS_REGISTRY[0], TOOLS_REGISTRY[3]]);
-  const [pinnedToolId, setPinnedToolId] = useState<string | null>(TOOLS_REGISTRY[0].id);
+  const [searchParams] = useSearchParams();
+  const initialTools = useMemo(() => {
+    const param = searchParams.get('tools');
+    if (param) {
+      const resolved = param
+        .split(',')
+        .map(id => TOOLS_REGISTRY.find(t => t.id === id.trim()))
+        .filter((t): t is Tool => Boolean(t))
+        .slice(0, 5);
+      if (resolved.length > 0) return resolved;
+    }
+    return [TOOLS_REGISTRY[0], TOOLS_REGISTRY[3]];
+  }, [searchParams]);
+
+  const [selectedTools, setSelectedTools] = useState<Tool[]>(initialTools);
+  const [pinnedToolId, setPinnedToolId] = useState<string | null>(initialTools[0]?.id || null);
   const [searchFilter, setSearchFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [warningMessage, setWarningMessage] = useState<string | null>(null);

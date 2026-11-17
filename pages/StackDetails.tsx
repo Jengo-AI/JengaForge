@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 
 export const StackDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, openAuthModal } = useAuth();
   
   const [stack, setStack] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -65,20 +65,21 @@ export const StackDetails: React.FC = () => {
   }, [id, user]);
 
   const handleCopyStack = async () => {
-    if (!user || !stack || isCopying) return;
-    setIsCopying(true);
-    
-    // Create new stack for the current user matching the name
-    const newStack = await stackService.createStack(`${stack.name} (Copy)`);
-    if (newStack) {
-      // Add tools
-      await stackService.updateStackTools(newStack.id, stack.toolIds);
-      setCopyFeedback('Stack successfully cloned to your Arsenal!');
-    } else {
-      setCopyFeedback('Failed to clone stack.');
+    if (!stack || isCopying) return;
+    if (!user) {
+      openAuthModal();
+      return;
     }
-    setIsCopying(false);
-    setTimeout(() => setCopyFeedback(null), 3000);
+    setIsCopying(true);
+    try {
+      await stackService.createStack(`${stack.name} (Copy)`, stack.toolIds || []);
+      setCopyFeedback('Stack cloned to your Arsenal.');
+    } catch {
+      setCopyFeedback('Failed to clone stack. Please try again.');
+    } finally {
+      setIsCopying(false);
+      setTimeout(() => setCopyFeedback(null), 3000);
+    }
   };
 
   if (isLoading) {
@@ -137,9 +138,9 @@ export const StackDetails: React.FC = () => {
               
               {stack.isFeatured ? (
                 <div className="flex gap-2">
-                  <button className="flex-1 bg-dark-900 border-2 border-dark-600 hover:border-jenga-500 hover:text-jenga-500 text-surface-text py-2 flex items-center justify-center gap-2 transition-colors font-mono uppercase tracking-widest text-xs font-bold">
-                     <Heart className="w-4 h-4" /> {stack.likes}
-                  </button>
+                  <div className="flex-1 bg-dark-900 border-2 border-dark-600 text-surface-text py-2 flex items-center justify-center gap-2 font-mono uppercase tracking-widest text-xs font-bold">
+                     <Heart className="w-4 h-4 text-jenga-500" /> {stack.likes}
+                  </div>
                   <button 
                     onClick={() => setIsShareModalOpen(true)}
                     className="flex-1 bg-dark-900 border-2 border-dark-600 hover:border-jenga-500 hover:text-jenga-500 text-surface-text py-2 flex items-center justify-center gap-2 transition-colors font-mono uppercase tracking-widest text-xs font-bold cursor-pointer"
@@ -164,8 +165,8 @@ export const StackDetails: React.FC = () => {
                 </div>
               )}
 
-              {/* Allow non-owners to copy this stack if they are logged in */}
-              {!isOwner && user && (
+              {/* Allow non-owners to copy this stack */}
+              {!isOwner && (
                  <button 
                   onClick={handleCopyStack}
                   disabled={isCopying}

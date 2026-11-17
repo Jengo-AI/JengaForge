@@ -5,11 +5,8 @@ import { generateChatResponse, generateWorkflowSuggestion } from "../services/ai
 
 export const apiRouter = Router();
 
-// Live tool registry copy
-const liveTools = JSON.parse(JSON.stringify(TOOLS_REGISTRY));
-
 // Health Check
-apiRouter.get("/health", (req: Request, res: Response) => {
+apiRouter.get("/health", (_req: Request, res: Response) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
@@ -18,33 +15,35 @@ apiRouter.get("/health", (req: Request, res: Response) => {
 });
 
 // System Info
-apiRouter.get("/sysinfo", (req: Request, res: Response) => {
+apiRouter.get("/sysinfo", (_req: Request, res: Response) => {
   res.json({
+    status: "operational",
     environment: process.env.NODE_ENV || "development",
     uptime: Math.floor(process.uptime()),
-    version: "3.3.0",
+    version: "4.1.0",
     apiVersion: "v2.0",
-    registeredTools: liveTools.length,
+    totalTools: TOOLS_REGISTRY.length,
+    registeredTools: TOOLS_REGISTRY.length,
     featuredStacks: FEATURED_STACKS.length,
   });
 });
 
 // Platform Ecosystem Stats
-apiRouter.get("/v2/stats", (req: Request, res: Response) => {
+apiRouter.get("/v2/stats", (_req: Request, res: Response) => {
   const categoryBreakdown: Record<string, number> = {};
   let totalScore = 0;
 
-  liveTools.forEach((t: any) => {
+  TOOLS_REGISTRY.forEach((t) => {
     categoryBreakdown[t.category] = (categoryBreakdown[t.category] || 0) + 1;
     totalScore += t.rating;
   });
 
-  const avgRating = liveTools.length > 0 ? Number((totalScore / liveTools.length).toFixed(2)) : 5.0;
+  const avgRating = TOOLS_REGISTRY.length > 0 ? Number((totalScore / TOOLS_REGISTRY.length).toFixed(2)) : 5.0;
 
   res.json({
     status: "success",
     data: {
-      totalTools: liveTools.length,
+      totalTools: TOOLS_REGISTRY.length,
       totalCategories: Object.keys(categoryBreakdown).length,
       categoryBreakdown,
       avgRating,
@@ -61,13 +60,17 @@ const getToolsHandler = (req: Request, res: Response) => {
   const category = (req.query.category as string || "").trim();
   const pricing = (req.query.pricing as string || "").trim();
   const sort = (req.query.sort as string || "relevance").toLowerCase().trim();
-  const page = Math.max(1, parseInt(req.query.page as string || "1", 10));
-  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string || "20", 10)));
 
-  let filtered = liveTools.filter((tool: any) => {
-    const matchQuery = !q || tool.name.toLowerCase().includes(q) || 
+  const parsedPage = Number.parseInt(String(req.query.page ?? "1"), 10);
+  const page = Number.isFinite(parsedPage) && parsedPage >= 1 ? parsedPage : 1;
+
+  const parsedLimit = Number.parseInt(String(req.query.limit ?? "20"), 10);
+  const limit = Number.isFinite(parsedLimit) && parsedLimit >= 1 ? Math.min(100, parsedLimit) : 20;
+
+  let filtered = TOOLS_REGISTRY.filter((tool) => {
+    const matchQuery = !q || tool.name.toLowerCase().includes(q) ||
       tool.description.toLowerCase().includes(q) ||
-      tool.tags.some((tag: string) => tag.toLowerCase().includes(q));
+      tool.tags.some((tag) => tag.toLowerCase().includes(q));
     const matchCategory = !category || category === "All" || tool.category.toLowerCase() === category.toLowerCase();
     const matchPricing = !pricing || pricing === "All" || tool.pricing.toLowerCase() === pricing.toLowerCase();
     return matchQuery && matchCategory && matchPricing;
@@ -103,14 +106,14 @@ apiRouter.get("/tools", getToolsHandler);
 // Single Tool Query Handler
 const getToolByIdHandler = (req: Request, res: Response) => {
   const toolId = String(req.params.id);
-  const tool = liveTools.find((t: any) => t.id === toolId);
+  const tool = TOOLS_REGISTRY.find((t) => t.id === toolId);
   if (!tool) {
     res.status(404).json({ error: `Tool with id '${toolId}' not found.` });
     return;
   }
 
-  const related = liveTools
-    .filter((t: any) => t.id !== tool.id && (t.category === tool.category || t.tags.some((tag: string) => tool.tags.includes(tag))))
+  const related = TOOLS_REGISTRY
+    .filter((t) => t.id !== tool.id && (t.category === tool.category || t.tags.some((tag) => tool.tags.includes(tag))))
     .slice(0, 5);
 
   res.json({ status: "success", data: tool, related });
@@ -120,7 +123,7 @@ apiRouter.get("/v2/tools/:id", getToolByIdHandler);
 apiRouter.get("/tools/:id", getToolByIdHandler);
 
 // Featured Stacks Handler
-const getStacksHandler = (req: Request, res: Response) => {
+const getStacksHandler = (_req: Request, res: Response) => {
   res.json({
     status: "success",
     data: FEATURED_STACKS,
@@ -151,9 +154,9 @@ apiRouter.post("/chat", chatLimiter, async (req: Request, res: Response) => {
       const text = await generateChatResponse(message, history);
       res.json({ status: "success", text });
     } catch (err: any) {
-      if (err.message === "SERVER_API_KEY_NOT_CONFIGURED") {
+      if (err?.message === "SERVER_API_KEY_NOT_CONFIGURED") {
         res.status(503).json({
-          error: "Server-side Gemini assistant is not configured with an API key. Please use client-side BYOK mode by adding your Gemini API key in Profile Settings.",
+          error: "Gemini API key is not configured on the server. Set GEMINI_API_KEY in Secrets or your server environment.",
           code: "SERVER_API_KEY_NOT_CONFIGURED",
         });
         return;
@@ -162,7 +165,7 @@ apiRouter.post("/chat", chatLimiter, async (req: Request, res: Response) => {
       const errMsg = err instanceof Error ? err.message : String(err);
       if (errMsg.includes("API key not valid") || errMsg.includes("403")) {
         res.status(403).json({
-          error: "The provided Gemini API key is invalid or unauthorized. Please check your Profile Settings.",
+          error: "The configured server Gemini API key is invalid or unauthorized.",
           code: "INVALID_API_KEY",
         });
         return;
@@ -174,7 +177,7 @@ apiRouter.post("/chat", chatLimiter, async (req: Request, res: Response) => {
       });
     }
   } catch (error: any) {
-    console.error("Unhandled Chat Controller Error:", error?.message || error);
+    console.error("Unhandled Chat Controller Error:", error instanceof Error ? error.message : "Unknown error");
     res.status(500).json({ error: "Failed to process chat request." });
   }
 });
@@ -198,9 +201,9 @@ apiRouter.post("/workflow/suggest", workflowSynthesisLimiter, async (req: Reques
       const suggestion = await generateWorkflowSuggestion(prompt);
       res.json({ status: "success", data: suggestion });
     } catch (err: any) {
-      if (err.message === "SERVER_API_KEY_NOT_CONFIGURED") {
+      if (err?.message === "SERVER_API_KEY_NOT_CONFIGURED") {
         res.status(503).json({
-          error: "Server-side Gemini engine is not configured with an API key. You can also provide your personal key in Profile Settings.",
+          error: "Gemini workflow service is not configured on the server. Set GEMINI_API_KEY in Secrets or your server environment.",
           code: "SERVER_API_KEY_NOT_CONFIGURED",
         });
         return;
@@ -209,7 +212,7 @@ apiRouter.post("/workflow/suggest", workflowSynthesisLimiter, async (req: Reques
       const errMsg = err instanceof Error ? err.message : String(err);
       if (errMsg.includes("API key not valid") || errMsg.includes("403")) {
         res.status(403).json({
-          error: "The provided Gemini API key is invalid or unauthorized.",
+          error: "The configured server Gemini API key is invalid or unauthorized.",
           code: "INVALID_API_KEY",
         });
         return;
@@ -221,8 +224,7 @@ apiRouter.post("/workflow/suggest", workflowSynthesisLimiter, async (req: Reques
       });
     }
   } catch (error: any) {
-    console.error("Unhandled Workflow Controller Error:", error?.message || error);
+    console.error("Unhandled Workflow Controller Error:", error instanceof Error ? error.message : "Unknown error");
     res.status(500).json({ error: "Failed to process workflow synthesis request." });
   }
 });
-

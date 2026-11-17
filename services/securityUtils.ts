@@ -90,7 +90,10 @@ export function sanitizeProfileUpdates(updates: any): Record<string, any> {
     allowedUpdates.name = updates.name.trim().slice(0, 100);
   }
   if (typeof updates.avatar === 'string' && updates.avatar.trim().length > 0) {
-    allowedUpdates.avatar = updates.avatar.trim().slice(0, 2000);
+    const cleanAvatar = updates.avatar.trim().slice(0, 2000);
+    if (isValidHttpUrl(cleanAvatar, true)) {
+      allowedUpdates.avatar = cleanAvatar;
+    }
   }
   if (Array.isArray(updates.savedToolIds)) {
     allowedUpdates.savedToolIds = updates.savedToolIds

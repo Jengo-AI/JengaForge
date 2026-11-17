@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-11-17
+
+### Codebase Audit Fixes, Gemini 4 Server Proxy & Security Hardening
+- **Server-Side Gemini 4 Proxy & Schema Validation (`server/services/aiService.ts`, `services/geminiService.ts`, `server/routes/apiRoutes.ts`)**:
+  - Upgraded server-side Gemini model to `gemini-4-hydrogen` with `@google/genai` (`^3.4.0`), `Type`-checked structured JSON response schema for workflow synthesis, and strict `validIds` canonical post-filtering.
+  - Consolidated all assistant and workflow synthesis requests exclusively through `/api/chat` and `/api/workflow/suggest` Express proxy routes, removing legacy browser key handling across `Profile.tsx`, `EditProfileModal.tsx`, `ApiDocs.tsx`, `Documentation.tsx`, `Support.tsx`, and `.env.example`.
+  - Updated `/api/sysinfo` (`version: "4.1.0"`), guarded pagination params with `Number.isFinite`, and cleaned duplicate route clones.
+- **Firestore Security Rules, PII Isolation & Atomic Upvotes (`firestore.rules`, `firebase-blueprint.json`, `services/toolService.ts`, `services/reviewService.ts`, `scripts/syncRules.ts`)**:
+  - Separated public upvote tallies (`toolStats/{toolId}`) from private voter records (`toolUpvotes/{toolId}_{userId}`) with atomic `writeBatch` updates in `toolService.toggleToolUpvote()`.
+  - Deployed hardened `firestore.rules` enforcing exact document field schemas, server timestamps (`isServerTimestamp`), public HTTPS SSRF regex checks on avatars and submissions, and `@firebase/eslint-plugin-security-rules` lint compliance (`eslint.config.js`).
+- **Frontend Stability, Performance & UX Fixes (`App.tsx`, `index.css`, `components/*`, `pages/*`)**:
+  - Defined `--color-dark-850`, `--color-dark-750`, and Google Fonts (`Inter`, `Space Grotesk`, `JetBrains Mono`) in `index.css`.
+  - Extracted Three.js scene into lazy-loaded `components/HeroCanvas.tsx` and enabled `React.lazy` code splitting across all routes plus `<ScrollToTop />` navigation reset in `App.tsx`.
+  - Fixed `ToolDetails.tsx` upvote tally initialization, auth gating, and `ReviewSection.tsx` review update prefill/deduplication.
+  - Replaced `window.confirm`/`alert` in `Stacks.tsx` with an inline React delete confirmation modal and error banner; wired `?tools=` pre-selection in `ComparisonPage.tsx`, `?q=` auto-run in `Assistant.tsx`, and working `Copy Stack` in `StackDetails.tsx`.
+  - Added `Submitted Tools` status visibility (`PENDING_REVIEW`, `APPROVED`, `REJECTED`) in `Profile.tsx` and `SubmitToolModal` confirmation notice in `Home.tsx`.
+  - Added interactive `POST /api/workflow/suggest` tab and dynamic registry metrics in `ApiDocs.tsx`; removed dead buttons and pulsing telemetry indicators across pages.
+- **Test Suites & Documentation Sync (`tests/*`, `README.md`, `PRD.md`, `PLANNING.md`, `TASKS.md`, `AGENTS.md`, `pages/Documentation.tsx`, `pages/Support.tsx`, `pages/PrivacyPolicy.tsx`, `pages/TermsOfService.tsx`)**:
+  - Fixed category fixtures in `tests/firestoreRules.test.ts` and `tests/e2eWorkflows.test.ts`; added proxy error-handling specs, SSRF avatar assertions (`tests/security.test.ts`), and `toolStats`/`toolUpvotes`/review-schema threat-matrix tests.
+  - Updated all repository and in-app documentation to match the November 2026 v4.1 architecture.
+
 ## [4.0.0] - 2026-10-13
 
 ### Strictly Bounded AI Workflow Synthesis Engine

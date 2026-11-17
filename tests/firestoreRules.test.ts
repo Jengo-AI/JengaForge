@@ -9,7 +9,7 @@ import {
   assertSucceeds,
   RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { TOOLS_REGISTRY } from '../constants';
 
 const rulesPath = path.resolve(process.cwd(), 'firestore.rules');
@@ -194,7 +194,7 @@ test('Firestore Security Rules: Behavioral Emulator Threat Matrix & Positive Ope
       setDoc(doc(aliceDb, 'toolSubmissions', 'sub_forged_owner'), {
         id: 'new-tool',
         name: 'New Tool',
-        category: 'Development',
+        category: 'Developer Tools',
         pricing: 'Free',
         description: 'Legitimate looking tool description',
         websiteUrl: 'https://example.com',
@@ -211,7 +211,7 @@ test('Firestore Security Rules: Behavioral Emulator Threat Matrix & Positive Ope
       setDoc(doc(aliceDb, 'toolSubmissions', 'sub_status_tamper'), {
         id: 'new-tool',
         name: 'New Tool',
-        category: 'Development',
+        category: 'Developer Tools',
         pricing: 'Free',
         description: 'Legitimate looking tool description',
         websiteUrl: 'https://example.com',
@@ -228,7 +228,7 @@ test('Firestore Security Rules: Behavioral Emulator Threat Matrix & Positive Ope
       setDoc(doc(aliceDb, 'toolSubmissions', 'sub_extra_field'), {
         id: 'new-tool',
         name: 'New Tool',
-        category: 'Development',
+        category: 'Developer Tools',
         pricing: 'Free',
         description: 'Legitimate looking tool description',
         websiteUrl: 'https://example.com',
@@ -312,7 +312,7 @@ test('Firestore Security Rules: Behavioral Emulator Threat Matrix & Positive Ope
       setDoc(doc(aliceDb, 'toolSubmissions', 'sub_fake_timestamp'), {
         id: 'new-tool-2',
         name: 'New Tool 2',
-        category: 'Development',
+        category: 'Developer Tools',
         pricing: 'Free',
         description: 'Legitimate looking tool description',
         websiteUrl: 'https://example.com',
@@ -329,7 +329,7 @@ test('Firestore Security Rules: Behavioral Emulator Threat Matrix & Positive Ope
       setDoc(doc(anonDb, 'toolSubmissions', 'sub_anon'), {
         id: 'new-tool-anon',
         name: 'Anon Tool',
-        category: 'Development',
+        category: 'Developer Tools',
         pricing: 'Free',
         description: 'Legitimate looking tool description',
         websiteUrl: 'https://example.com',
@@ -337,6 +337,38 @@ test('Firestore Security Rules: Behavioral Emulator Threat Matrix & Positive Ope
         submittedBy: 'random_id',
         status: 'PENDING_REVIEW',
         createdAt: serverTimestamp(),
+      })
+    );
+  });
+
+  await t.test('Attack 12: Cross-user upvote read & direct toolStats forgery -> DENIED', async () => {
+    await assertFails(
+      getDoc(doc(aliceDb, 'toolUpvotes', `${canonicalTool}_${userBId}`))
+    );
+    await assertFails(
+      setDoc(doc(aliceDb, 'toolStats', canonicalTool), {
+        upvotesCount: 999,
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  await t.test('Attack 13: Review extra field injection & unsafe HTTP avatar URL -> DENIED', async () => {
+    await assertFails(
+      setDoc(doc(bobDb, 'reviews', `${userBId}_${canonicalTool2}`), {
+        toolId: canonicalTool2,
+        userId: userBId,
+        userName: 'Bob',
+        rating: 5,
+        text: 'Solid review',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        verifiedBadge: true, // Extra injected field
+      })
+    );
+    await assertFails(
+      updateDoc(doc(bobDb, 'users', userBId), {
+        avatar: 'http://localhost:3000/evil.png',
       })
     );
   });
@@ -456,14 +488,18 @@ test('Firestore Security Rules: Behavioral Emulator Threat Matrix & Positive Ope
     );
   });
 
-  await t.test('Legitimate: Authenticated user casts 1 upvote for canonical tool -> ALLOWED', async () => {
-    await assertSucceeds(
-      setDoc(doc(aliceDb, 'toolUpvotes', `${canonicalTool}_${userAId}`), {
-        toolId: canonicalTool,
-        userId: userAId,
-        createdAt: serverTimestamp(),
-      })
-    );
+  await t.test('Legitimate: Authenticated user casts 1 upvote + atomic toolStats update -> ALLOWED', async () => {
+    const batch = writeBatch(aliceDb);
+    batch.set(doc(aliceDb, 'toolUpvotes', `${canonicalTool}_${userAId}`), {
+      toolId: canonicalTool,
+      userId: userAId,
+      createdAt: serverTimestamp(),
+    });
+    batch.set(doc(aliceDb, 'toolStats', canonicalTool), {
+      upvotesCount: 1,
+      updatedAt: serverTimestamp(),
+    });
+    await assertSucceeds(batch.commit());
   });
 
   await t.test('Legitimate: Authenticated user submits a valid tool for moderation -> ALLOWED', async () => {
@@ -471,7 +507,7 @@ test('Firestore Security Rules: Behavioral Emulator Threat Matrix & Positive Ope
       setDoc(doc(aliceDb, 'toolSubmissions', 'sub_alice_valid'), {
         id: 'valid-alice-tool',
         name: 'Valid Alice Tool',
-        category: 'Development',
+        category: 'Developer Tools',
         pricing: 'Free',
         description: 'Legitimate looking tool description that passes validation',
         websiteUrl: 'https://example.com/tool',
@@ -483,11 +519,12 @@ test('Firestore Security Rules: Behavioral Emulator Threat Matrix & Positive Ope
     );
   });
 
-  await t.test('Legitimate: Unauthenticated user can read public stack -> ALLOWED', async () => {
-    // Unauthenticated reads are allowed on stacks for public sharing
-    const { getDoc } = await import('firebase/firestore');
+  await t.test('Legitimate: Unauthenticated user can read public stack and toolStats -> ALLOWED', async () => {
     await assertSucceeds(
       getDoc(doc(anonDb, 'stacks', 'stack_bob_existing'))
+    );
+    await assertSucceeds(
+      getDoc(doc(anonDb, 'toolStats', canonicalTool))
     );
   });
 

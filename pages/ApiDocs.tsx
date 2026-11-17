@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { PageWrapper } from '../components/PageWrapper';
 import { 
-  Terminal, Key, Check, Play, Copy, RefreshCw, 
-  ShieldCheck, Code2 
+  Terminal, ShieldCheck, Check, Play, Copy, RefreshCw, Code2 
 } from 'lucide-react';
 import { toolService } from '../services/toolService';
-import { PlatformStats } from '../types';
+import { TOOLS_REGISTRY } from '../constants';
+import { PlatformStats, ToolCategory } from '../types';
 
-type EndpointId = 'tools' | 'tool' | 'stacks' | 'stats' | 'chat' | 'health';
+type EndpointId = 'tools' | 'tool' | 'stacks' | 'stats' | 'chat' | 'workflow' | 'health';
 
 export const ApiDocs: React.FC = () => {
   const [activeEndpoint, setActiveEndpoint] = useState<EndpointId>('tools');
@@ -28,16 +28,20 @@ export const ApiDocs: React.FC = () => {
   const [executionResult, setExecutionResult] = useState<{
     status: number;
     latencyMs: number;
-    data: any;
+    data: unknown;
   } | null>(null);
 
-  // Platform telemetry
+  // Platform metrics
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [sysInfo, setSysInfo] = useState<{ version: string; status: string; uptime: number; totalTools: number } | null>(null);
   const [healthStatus, setHealthStatus] = useState<{ ok: boolean; latencyMs: number } | null>(null);
 
+  const fallbackAvgRating = (
+    TOOLS_REGISTRY.reduce((sum, t) => sum + t.rating, 0) / TOOLS_REGISTRY.length
+  ).toFixed(2);
+  const fallbackReviewsCount = TOOLS_REGISTRY.reduce((sum, t) => sum + t.reviews, 0).toLocaleString();
+
   useEffect(() => {
-    // Load live telemetry
     toolService.checkServerHealth().then(h => setHealthStatus(h));
     toolService.fetchPlatformStats().then(s => setStats(s));
 
@@ -78,8 +82,17 @@ export const ApiDocs: React.FC = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            message: 'What are the top 2026 AI coding agents?',
+            message: 'What are the top October 2026 AI coding agents?',
             history: []
+          })
+        };
+      } else if (activeEndpoint === 'workflow') {
+        url = '/api/workflow/suggest';
+        options = {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: 'Build an autonomous full-stack TypeScript web app pipeline'
           })
         };
       }
@@ -93,12 +106,12 @@ export const ApiDocs: React.FC = () => {
         latencyMs,
         data
       });
-    } catch (err: any) {
+    } catch (err) {
       const latencyMs = Math.round(performance.now() - start);
       setExecutionResult({
         status: 500,
         latencyMs,
-        data: { error: err.message || 'Execution error' }
+        data: { error: err instanceof Error ? err.message : 'Execution error' }
       });
     } finally {
       setIsExecuting(false);
@@ -108,7 +121,8 @@ export const ApiDocs: React.FC = () => {
   const getCodeSnippet = () => {
     const origin = window.location.origin;
     if (activeEndpoint === 'tools') {
-      const query = `/api/v2/tools?category=${queryCategory || 'Frontier LLM'}&limit=5`;
+      const catParam = encodeURIComponent(queryCategory || ToolCategory.LLM);
+      const query = `/api/v2/tools?category=${catParam}&limit=5`;
       if (activeLang === 'curl') {
         return `curl -X GET "${origin}${query}" \\\n  -H "Accept: application/json"`;
       } else if (activeLang === 'ts') {
@@ -119,7 +133,7 @@ export const ApiDocs: React.FC = () => {
     }
 
     if (activeEndpoint === 'tool') {
-      const toolId = singleToolId.trim() || 'cursor-agent';
+      const toolId = encodeURIComponent(singleToolId.trim() || 'cursor-agent');
       if (activeLang === 'curl') {
         return `curl -X GET "${origin}/api/v2/tools/${toolId}" \\\n  -H "Accept: application/json"`;
       } else if (activeLang === 'ts') {
@@ -151,11 +165,21 @@ export const ApiDocs: React.FC = () => {
 
     if (activeEndpoint === 'chat') {
       if (activeLang === 'curl') {
-        return `curl -X POST "${origin}/api/chat" \\\n  -H "Content-Type: application/json" \\\n  -d '{"message": "Summarize DeepSeek V4", "history": []}'`;
+        return `curl -X POST "${origin}/api/chat" \\\n  -H "Content-Type: application/json" \\\n  -d '{"message": "Summarize DeepSeek V4.1 Flash", "history": []}'`;
       } else if (activeLang === 'ts') {
-        return `const res = await fetch("${origin}/api/chat", {\n  method: "POST",\n  headers: { "Content-Type": "application/json" },\n  body: JSON.stringify({ message: "Summarize DeepSeek V4" })\n});`;
+        return `const res = await fetch("${origin}/api/chat", {\n  method: "POST",\n  headers: { "Content-Type": "application/json" },\n  body: JSON.stringify({ message: "Summarize DeepSeek V4.1 Flash", history: [] })\n});`;
       } else {
-        return `import requests\n\nres = requests.post("${origin}/api/chat", json={"message": "Summarize DeepSeek V4"})\nprint(res.json())`;
+        return `import requests\n\nres = requests.post("${origin}/api/chat", json={"message": "Summarize DeepSeek V4.1 Flash", "history": []})\nprint(res.json())`;
+      }
+    }
+
+    if (activeEndpoint === 'workflow') {
+      if (activeLang === 'curl') {
+        return `curl -X POST "${origin}/api/workflow/suggest" \\\n  -H "Content-Type: application/json" \\\n  -d '{"prompt": "Build an autonomous full-stack TypeScript app pipeline"}'`;
+      } else if (activeLang === 'ts') {
+        return `const res = await fetch("${origin}/api/workflow/suggest", {\n  method: "POST",\n  headers: { "Content-Type": "application/json" },\n  body: JSON.stringify({ prompt: "Build an autonomous full-stack TypeScript app pipeline" })\n});`;
+      } else {
+        return `import requests\n\nres = requests.post("${origin}/api/workflow/suggest", json={"prompt": "Build an autonomous full-stack TypeScript app pipeline"})\nprint(res.json())`;
       }
     }
 
@@ -167,6 +191,8 @@ export const ApiDocs: React.FC = () => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const isPostEndpoint = activeEndpoint === 'chat' || activeEndpoint === 'workflow';
 
   return (
     <PageWrapper>
@@ -181,29 +207,28 @@ export const ApiDocs: React.FC = () => {
               </h1>
             </div>
             <p className="text-surface-muted font-mono uppercase tracking-widest text-sm">
-              Full-Stack REST Architecture • Live Node.js/Express Backend Proxy
+              Full-Stack REST Architecture • Express Backend & Gemini Proxy
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="px-3 py-1.5 bg-dark-800 border-2 border-green-500 text-green-400 font-mono text-xs font-black uppercase tracking-widest flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
-              {healthStatus?.ok ? `ONLINE (${healthStatus.latencyMs}ms)` : 'ACTIVE'}
+            <span className="px-3 py-1.5 bg-dark-800 border-2 border-green-500 text-green-400 font-mono text-xs font-black uppercase tracking-widest">
+              {healthStatus?.ok ? `READY (${healthStatus.latencyMs}ms)` : 'REST API'}
             </span>
             <span className="px-3 py-1.5 bg-dark-800 border-2 border-dark-600 text-jenga-500 font-mono text-xs font-black uppercase tracking-widest">
-              v2.4.0-PROD
+              v{sysInfo?.version || '4.1.0'}
             </span>
           </div>
         </div>
 
-        {/* Live Ecosystem Telemetry Cards */}
+        {/* Registry Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-mono">
           <div className="p-4 bg-dark-900 border-2 border-dark-700">
             <span className="text-[10px] text-surface-muted uppercase tracking-widest block mb-1">
               Active Tools in DB
             </span>
             <span className="text-2xl md:text-3xl font-black text-jenga-500">
-              {stats?.totalTools || sysInfo?.totalTools || '12'}
+              {stats?.totalTools ?? sysInfo?.totalTools ?? TOOLS_REGISTRY.length}
             </span>
           </div>
 
@@ -212,16 +237,16 @@ export const ApiDocs: React.FC = () => {
               Average Rating
             </span>
             <span className="text-2xl md:text-3xl font-black text-surface-text">
-              {stats?.avgRating ? stats.avgRating.toFixed(2) : '4.88'} ★
+              {stats?.avgRating ? stats.avgRating.toFixed(2) : fallbackAvgRating} ★
             </span>
           </div>
 
           <div className="p-4 bg-dark-900 border-2 border-dark-700">
             <span className="text-[10px] text-surface-muted uppercase tracking-widest block mb-1">
-              Community Reviews
+              Indexed Reviews
             </span>
             <span className="text-2xl md:text-3xl font-black text-surface-text">
-              14,200+
+              {fallbackReviewsCount}
             </span>
           </div>
 
@@ -242,12 +267,12 @@ export const ApiDocs: React.FC = () => {
             <div className="flex items-center gap-3">
               <Code2 className="w-5 h-5 text-jenga-500" />
               <span className="font-mono text-sm font-black uppercase tracking-widest text-surface-text">
-                Live Interactive API Console
+                Interactive API Console
               </span>
             </div>
 
             <div className="flex flex-wrap gap-1 font-mono text-xs">
-              {(['tools', 'tool', 'stacks', 'stats', 'chat', 'health'] as EndpointId[]).map(ep => (
+              {(['tools', 'tool', 'stacks', 'stats', 'chat', 'workflow', 'health'] as EndpointId[]).map(ep => (
                 <button
                   key={ep}
                   onClick={() => {
@@ -271,19 +296,20 @@ export const ApiDocs: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3 font-mono">
                 <span className={`px-2.5 py-1 text-xs font-black uppercase tracking-widest ${
-                  ['chat'].includes(activeEndpoint) 
+                  isPostEndpoint 
                     ? 'bg-amber-500 text-dark-950' 
                     : 'bg-jenga-500 text-dark-950'
                 }`}>
-                  {['chat'].includes(activeEndpoint) ? 'POST' : 'GET'}
+                  {isPostEndpoint ? 'POST' : 'GET'}
                 </span>
                 <span className="text-surface-text font-bold text-sm">
                   {activeEndpoint === 'tools' && '/api/v2/tools'}
-                  {activeEndpoint === 'tool' && `/api/v2/tools/:id`}
+                  {activeEndpoint === 'tool' && '/api/v2/tools/:id'}
                   {activeEndpoint === 'stacks' && '/api/v2/stacks/featured'}
                   {activeEndpoint === 'stats' && '/api/v2/stats'}
                   {activeEndpoint === 'health' && '/api/health'}
                   {activeEndpoint === 'chat' && '/api/chat'}
+                  {activeEndpoint === 'workflow' && '/api/workflow/suggest'}
                 </span>
               </div>
 
@@ -331,11 +357,9 @@ export const ApiDocs: React.FC = () => {
                     className="w-full bg-dark-800 border border-dark-600 px-2 py-1.5 text-surface-text uppercase text-xs"
                   >
                     <option value="">All Categories</option>
-                    <option value="Frontier LLM">Frontier LLM</option>
-                    <option value="Agent">Agent</option>
-                    <option value="Code Assistant">Code Assistant</option>
-                    <option value="Video Generation">Video Generation</option>
-                    <option value="Sovereign AI">Sovereign AI</option>
+                    {Object.values(ToolCategory).map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -426,7 +450,7 @@ export const ApiDocs: React.FC = () => {
             <div className="p-6 space-y-4">
               <div className="flex items-center justify-between font-mono text-xs">
                 <span className="uppercase tracking-widest text-surface-muted">
-                  Live Response
+                  Response Output
                 </span>
                 {executionResult && (
                   <div className="flex items-center gap-3">
@@ -449,7 +473,7 @@ export const ApiDocs: React.FC = () => {
                   <pre><code>{JSON.stringify(executionResult.data, null, 2)}</code></pre>
                 ) : (
                   <p className="text-surface-muted italic">
-                    Click "Send Request" above to execute this endpoint against the live Express backend.
+                    Click &quot;Send Request&quot; above to execute this endpoint against the Express backend.
                   </p>
                 )}
               </div>
@@ -457,25 +481,25 @@ export const ApiDocs: React.FC = () => {
           </div>
         </div>
 
-        {/* Security & BYOK Architecture */}
+        {/* Server-Side Security & Proxy Architecture */}
         <section className="border-t-2 border-dark-700 pt-8">
           <h2 className="text-2xl font-black text-surface-text uppercase tracking-widest mb-4 flex items-center gap-3">
-            <Key className="w-6 h-6 text-jenga-500" />
-            Security & BYOK (Bring Your Own Key) Standard
+            <ShieldCheck className="w-6 h-6 text-jenga-500" />
+            Server-Side Security & Gemini Proxy Architecture
           </h2>
           <div className="bg-dark-900 border-2 border-dark-700 p-6 space-y-3 font-mono text-xs text-surface-muted">
             <p>
-              In accordance with JengaForge enterprise engineering directives:
+              JengaForge executes all AI workloads through server-side Express proxy endpoints:
             </p>
             <ul className="list-disc pl-5 space-y-2 text-surface-text">
               <li>
-                <strong>Server-Side Proxy:</strong> Public assistant requests route through <code className="text-jenga-500">/api/chat</code> powered by the server's own securely provisioned credentials.
+                <strong>Server-Side Gemini Proxy:</strong> Assistant conversations (<code className="text-jenga-500">POST /api/chat</code>) and workflow synthesis (<code className="text-jenga-500">POST /api/workflow/suggest</code>) authenticate using the server&apos;s provisioned <code className="text-jenga-500">GEMINI_API_KEY</code> environment credential—never exposed to browser clients.
               </li>
               <li>
-                <strong>Zero-Trust BYOK Isolation:</strong> When Bring-Your-Own-Key is enabled, client keys execute directly in the browser via the Google Gen AI SDK. User keys are strictly kept in local storage and never transmitted to backend endpoints or stored in HTTP headers.
+                <strong>Strict Canonical Whitelist:</strong> Synthesized workflows validate every returned tool ID against the active <code className="text-jenga-500">TOOLS_REGISTRY</code> catalog before responding to clients.
               </li>
               <li>
-                <strong>Rate Limiting & Origin Controls:</strong> Server endpoints enforce rate limits and strict CORS origin validation to prevent automated scraping and abuse.
+                <strong>Rate Limiting, Helmet CSP & Origin Controls:</strong> API routes enforce per-IP rate limiting, strict Content Security Policy headers, HPP protection, and explicit CORS origin allowlists.
               </li>
             </ul>
           </div>

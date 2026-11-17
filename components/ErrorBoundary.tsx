@@ -38,19 +38,20 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       let errorMessage = "An unexpected error occurred.";
-      let isFirestoreError = false;
+      let isPermissionDenied = false;
 
       try {
         if (this.state.error?.message) {
           const parsedError = JSON.parse(this.state.error.message);
           if (parsedError.operationType && parsedError.error) {
-            isFirestoreError = true;
-            errorMessage = `Database Error (${parsedError.operationType}): ${parsedError.error}`;
+            const rawErr = String(parsedError.error);
+            isPermissionDenied = /permission|insufficient|missing or insufficient permissions/i.test(rawErr);
+            errorMessage = `Database Error (${parsedError.operationType}): ${rawErr}`;
           }
         }
       } catch {
-        // Not a JSON error message, use the original message
         errorMessage = this.state.error?.message || errorMessage;
+        isPermissionDenied = /permission-denied|missing or insufficient permissions/i.test(errorMessage);
       }
 
       return (
@@ -61,13 +62,12 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
             <h1 className="text-2xl font-black text-surface-text mb-4 uppercase tracking-widest">Something went wrong</h1>
             <p className="text-surface-muted mb-6 font-mono text-sm leading-relaxed">
-              {isFirestoreError 
+              {isPermissionDenied 
                 ? <>
-                    <strong className="text-red-500 block mb-2">🔥 Firestore Security Rules Missing</strong>
-                    It looks like you are using a manual Firebase project, but haven't updated your Firestore Security Rules.<br/><br/>
-                    Please open the <strong className="text-white">firestore.rules</strong> file in the sidebar, copy its contents, and paste them into your Firebase Console under <strong className="text-white">Firestore Database → Rules</strong>.
+                    <strong className="text-red-500 block mb-2">Firestore Access Denied</strong>
+                    Your session may not have permission to perform this database operation. Try signing out and back in, or verify your deployed <strong className="text-white">firestore.rules</strong>.
                   </>
-                : "The application encountered an unexpected error."}
+                : "The application encountered an unexpected runtime error. Reloading usually resolves transient issues."}
             </p>
             <div className="bg-dark-900 rounded-none p-4 text-left overflow-auto max-h-48 mb-8 border-4 border-dark-600">
               <code className="text-red-400 text-sm font-mono whitespace-pre-wrap">
@@ -81,7 +81,7 @@ export class ErrorBoundary extends Component<Props, State> {
               >
                 Reload Application
               </button>
-              {isFirestoreError && (
+              {isPermissionDenied && (
                 <button
                   onClick={this.handleSignOut}
                   className="w-full px-6 py-3 bg-dark-700 hover:bg-dark-600 text-white font-bold rounded-none transition-all border-2 border-dark-950 uppercase tracking-widest flex items-center justify-center gap-2"

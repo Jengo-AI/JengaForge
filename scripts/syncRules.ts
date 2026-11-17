@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { TOOLS_REGISTRY } from '../constants';
 
 const rulesPath = path.resolve(process.cwd(), 'firestore.rules');
@@ -31,5 +32,7 @@ export function syncFirestoreRules(): void {
   console.log(`[syncRules] Successfully synchronized ${TOOLS_REGISTRY.length} canonical tools to firestore.rules.`);
 }
 
-// Execute if run directly
-syncFirestoreRules();
+// Execute only when run directly from CLI
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  syncFirestoreRules();
+}

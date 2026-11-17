@@ -1,5 +1,18 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { TOOLS_REGISTRY, FEATURED_STACKS } from "../../constants";
+
+const GEMINI_MODEL = "gemini-4-hydrogen";
+
+function createAiClient(apiKey: string): GoogleGenAI {
+  return new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        "User-Agent": "aistudio-build",
+      },
+    },
+  });
+}
 
 /**
  * Dynamically synthesizes the system prompt from the active TOOLS_REGISTRY and FEATURED_STACKS.
@@ -27,7 +40,7 @@ export function buildSystemInstruction(): string {
 
   return `
 You are JengaForge AI, the intelligent assistant for the JengaForge AI Tools Repository.
-You represent the Bunifu Suite "Jengo" architectural ethos: direct, technical, and high-energy.
+You represent the Bunifu Suite "Jengo" architectural ethos: direct, technical, and clear.
 
 Live Registry Overview:
 - Curated Tools Total: ${TOOLS_REGISTRY.length} tools across categories: ${categories.join(', ')}.
@@ -73,24 +86,7 @@ ABSOLUTE BOUNDARY RULES (STRICT ENFORCEMENT):
 2. REPOSITORY WHITELIST CONSTRAINT: You are STRICTLY FORBIDDEN from suggesting, inventing, or referencing any model or tool NOT present in the JengaForge catalog below. Every single tool in your suggested steps MUST have a 'toolId' exactly matching one of the following canonical IDs:
 [${validToolIds.map(id => `"${id}"`).join(', ')}]
 3. NO EXTERNAL OR OUTSIDE TOOLS: If a tool is not in the whitelist, DO NOT use it under any circumstances. Select the best matching alternative from the whitelist.
-4. JSON STRUCTURE: You must ALWAYS respond in valid JSON format matching this schema:
-{
-  "workflowTitle": "Short descriptive title of the workflow",
-  "targetObjective": "Summary of the user goal addressed",
-  "estimatedComplexity": "Lightweight" | "Modular" | "Enterprise Agentic",
-  "steps": [
-    {
-      "stepNumber": 1,
-      "phase": "e.g. Planning & Research | Core Synthesis | Code Generation | Video Production | Quality & Review",
-      "toolId": "exact_canonical_tool_id_from_whitelist",
-      "toolName": "Exact Name from whitelist",
-      "roleDescription": "What this specific tool does in this step",
-      "rationale": "Why this specific repository tool was chosen over others"
-    }
-  ],
-  "canonicalToolIds": ["array_of_exact_canonical_tool_ids_used"],
-  "summary": "Brief 1-2 sentence overview of the end-to-end pipeline synergy"
-}
+4. JSON STRUCTURE: Always respond in valid JSON matching the structured output schema.
 
 ACTIVE JENGAFORGE REPOSITORY CATALOG:
 ${JSON.stringify(toolWhitelist)}
@@ -103,23 +99,53 @@ export async function generateWorkflowSuggestion(userPrompt: string): Promise<an
     throw new Error("SERVER_API_KEY_NOT_CONFIGURED");
   }
 
-  const aiClient = new GoogleGenAI({ apiKey });
+  const aiClient = createAiClient(apiKey);
 
   const response = await aiClient.models.generateContent({
-    model: "gemini-3.8-flash",
+    model: GEMINI_MODEL,
     contents: [
-      { 
-        role: "user", 
-        parts: [{ 
-          text: `Design an optimal AI workflow for the following project requirement using ONLY repository models and tools:\n"${userPrompt.trim()}"` 
-        }] 
+      {
+        role: "user",
+        parts: [{
+          text: `Design an optimal AI workflow for the following project requirement using ONLY repository models and tools:\n"${userPrompt.trim()}"`
+        }]
       }
     ],
     config: {
       systemInstruction: buildWorkflowSystemInstruction(),
-      temperature: 0.2,
       responseMimeType: "application/json",
-      maxOutputTokens: 1500,
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          workflowTitle: { type: Type.STRING },
+          targetObjective: { type: Type.STRING },
+          estimatedComplexity: {
+            type: Type.STRING,
+            enum: ["Lightweight", "Modular", "Enterprise Agentic"],
+          },
+          steps: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                stepNumber: { type: Type.INTEGER },
+                phase: { type: Type.STRING },
+                toolId: { type: Type.STRING },
+                toolName: { type: Type.STRING },
+                roleDescription: { type: Type.STRING },
+                rationale: { type: Type.STRING },
+              },
+              required: ["stepNumber", "phase", "toolId", "toolName", "roleDescription", "rationale"],
+            },
+          },
+          canonicalToolIds: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+          },
+          summary: { type: Type.STRING },
+        },
+        required: ["workflowTitle", "targetObjective", "estimatedComplexity", "steps", "canonicalToolIds", "summary"],
+      },
     },
   });
 
@@ -128,16 +154,18 @@ export async function generateWorkflowSuggestion(userPrompt: string): Promise<an
   try {
     parsed = JSON.parse(rawText);
   } catch {
-    // Fallback if markdown fence was included
-    const cleaned = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const cleaned = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
     parsed = JSON.parse(cleaned);
   }
 
-  // Double check canonical enforcement: filter canonicalToolIds against actual registry
-  const validIds = new Set(TOOLS_REGISTRY.map(t => t.id));
+  // Canonical enforcement: filter steps & canonicalToolIds against active registry
+  const validIds = new Set(TOOLS_REGISTRY.filter(t => t.status === "Active").map(t => t.id));
   if (Array.isArray(parsed.steps)) {
     parsed.steps = parsed.steps.filter((s: any) => validIds.has(s.toolId));
     parsed.canonicalToolIds = Array.from(new Set(parsed.steps.map((s: any) => s.toolId)));
+  } else {
+    parsed.steps = [];
+    parsed.canonicalToolIds = [];
   }
 
   return parsed;
@@ -149,7 +177,7 @@ export async function generateChatResponse(message: string, history: any[] = [])
     throw new Error("SERVER_API_KEY_NOT_CONFIGURED");
   }
 
-  const aiClient = new GoogleGenAI({ apiKey });
+  const aiClient = createAiClient(apiKey);
 
   const formattedHistory = Array.isArray(history)
     ? history.slice(-10).map((h: any) => ({
@@ -161,14 +189,13 @@ export async function generateChatResponse(message: string, history: any[] = [])
     : [];
 
   const response = await aiClient.models.generateContent({
-    model: "gemini-3.8-flash",
+    model: GEMINI_MODEL,
     contents: [
       ...formattedHistory,
       { role: "user", parts: [{ text: message.trim() }] },
     ],
     config: {
       systemInstruction: buildSystemInstruction(),
-      temperature: 0.7,
     },
   });
 

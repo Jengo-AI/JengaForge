@@ -1,29 +1,37 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate, Link } from 'react-router-dom';
 import { 
   Zap, Calendar, Layers, Trophy, 
-  Settings, ArrowRight, Bookmark, FolderOpen, Key, Check
+  Settings, ArrowRight, Bookmark, FolderOpen, Send, ExternalLink
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { TOOLS_REGISTRY, getToolById } from '../constants';
+import { ToolSubmission } from '../types';
 import { ToolCard } from '../components/ToolCard';
 import { PageWrapper } from '../components/PageWrapper';
 import { EditProfileModal } from '../components/EditProfileModal';
 import { stackService, UserStack } from '../services/stackService';
+import { toolService } from '../services/toolService';
 
 export const Profile: React.FC = () => {
   const { user, isAuthReady } = useAuth();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('USER_GEMINI_API_KEY') || '');
-  const [isKeySaved, setIsKeySaved] = useState(false);
   const [userStacks, setUserStacks] = useState<UserStack[]>([]);
+  const [submissions, setSubmissions] = useState<ToolSubmission[]>([]);
 
   useEffect(() => {
-    if (user) {
-      stackService.getUserStacks(user.id).then(setUserStacks);
-    }
+    if (!user) return;
+    let active = true;
+    stackService.getUserStacks(user.id).then((data) => {
+      if (active) setUserStacks(data);
+    });
+    toolService.getUserSubmissions().then((data) => {
+      if (active) setSubmissions(data);
+    });
+    return () => {
+      active = false;
+    };
   }, [user]);
 
   if (!isAuthReady) {
@@ -43,6 +51,7 @@ export const Profile: React.FC = () => {
   const stats = [
     { label: 'Saved Tools', value: user.savedToolIds.length, icon: Bookmark, color: 'text-jenga-500' },
     { label: 'Stacks Built', value: userStacks.length, icon: Layers, color: 'text-blue-500' },
+    { label: 'Submissions', value: submissions.length, icon: Send, color: 'text-emerald-400' },
   ];
 
   return (
@@ -101,7 +110,7 @@ export const Profile: React.FC = () => {
       />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-16 max-w-4xl mx-auto md:ml-0 md:mr-auto">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-16 max-w-4xl mx-auto md:ml-0 md:mr-auto">
         {stats.map((stat, i) => (
           <motion.div 
             key={i} 
@@ -112,7 +121,7 @@ export const Profile: React.FC = () => {
             className="bg-dark-800 border-2 border-dark-600 rounded-none p-6 hover:border-jenga-500 transition-all group shadow-[4px_4px_0px_0px_rgba(255,140,0,1)]"
           >
             <div className="flex items-center justify-between mb-4">
-              <div className={`p-3 rounded-none bg-dark-900 border-2 border-dark-600 group-hover:scale-110 transition-transform`}>
+              <div className="p-3 rounded-none bg-dark-900 border-2 border-dark-600 group-hover:scale-110 transition-transform">
                 <stat.icon className={`w-6 h-6 ${stat.color}`} />
               </div>
               <span className="text-surface-muted group-hover:text-jenga-500">
@@ -154,48 +163,6 @@ export const Profile: React.FC = () => {
               </Link>
             </div>
           )}
-        </section>
-
-        <section>
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-black text-surface-text flex items-center gap-4 uppercase tracking-widest">
-              <div className="w-2 h-8 bg-jenga-500 rounded-none" />
-              API Configurations
-            </h2>
-          </div>
-          <div className="bg-dark-800 border-2 border-dark-600 rounded-none p-6 md:p-8 max-w-2xl shadow-[4px_4px_0px_0px_rgba(255,140,0,1)] hover:border-jenga-500 transition-all">
-             <h3 className="text-xl font-bold mb-4 text-surface-text uppercase tracking-widest">Gemini API Key</h3>
-             <p className="text-surface-muted mb-6 font-mono text-sm leading-relaxed">
-               Enter your Gemini API key to unlock dynamic assistant features directly inside JengaForge. Your key is securely stored locally in your browser and never sent to our servers.
-             </p>
-             <form onSubmit={(e) => {
-               e.preventDefault();
-               if(apiKey.trim()) {
-                 localStorage.setItem('USER_GEMINI_API_KEY', apiKey.trim());
-               } else {
-                 localStorage.removeItem('USER_GEMINI_API_KEY');
-               }
-               setIsKeySaved(true);
-               setTimeout(() => setIsKeySaved(false), 3000);
-             }} className="flex flex-col sm:flex-row gap-4">
-               <div className="relative flex-grow">
-                 <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                 <input
-                   type="password"
-                   value={apiKey}
-                   onChange={(e) => setApiKey(e.target.value)}
-                   className="w-full bg-dark-900 border-2 border-dark-600 py-3 pl-11 pr-4 text-surface-text focus:border-jenga-500 outline-none transition-all font-mono"
-                   placeholder="AIzaSy..."
-                 />
-               </div>
-               <button
-                 type="submit"
-                 className="bg-jenga-500 hover:bg-jenga-400 text-dark-950 px-6 py-3 font-black uppercase tracking-widest transition-all border-2 border-dark-950 flex justify-center items-center gap-2 whitespace-nowrap active:scale-95"
-               >
-                  {isKeySaved ? <><Check className="w-5 h-5" /> Saved</> : 'Save Key'}
-               </button>
-             </form>
-          </div>
         </section>
 
         <section>
@@ -252,6 +219,76 @@ export const Profile: React.FC = () => {
               <p className="text-surface-muted mb-6 max-w-sm mx-auto font-mono text-sm">Create custom toolchains to streamline your workflows.</p>
               <Link to="/stacks" className="inline-flex px-6 py-2 bg-blue-500 text-dark-950 font-black border-2 border-dark-950 rounded-none uppercase tracking-widest hover:bg-blue-400 transition-colors text-sm">
                 Build a Stack
+              </Link>
+            </div>
+          )}
+        </section>
+
+        <section>
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl font-black text-surface-text flex items-center gap-4 uppercase tracking-widest">
+              <div className="w-2 h-8 bg-emerald-400 rounded-none" />
+              Submitted Tools
+            </h2>
+            <Link to="/" className="text-emerald-400 hover:text-emerald-300 text-sm font-black flex items-center gap-2 uppercase tracking-widest font-mono">
+              Browse Directory <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {submissions.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {submissions.map(sub => {
+                const statusBadge =
+                  sub.status === 'APPROVED'
+                    ? 'bg-emerald-950/70 border-emerald-500 text-emerald-400'
+                    : sub.status === 'REJECTED'
+                    ? 'bg-red-950/70 border-red-500 text-red-400'
+                    : 'bg-amber-950/70 border-jenga-500 text-jenga-400';
+
+                return (
+                  <div
+                    key={sub.id}
+                    className="bg-dark-800 border-2 border-dark-600 p-6 rounded-none flex flex-col justify-between gap-4"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-mono uppercase tracking-widest text-surface-muted">
+                          {sub.category} · {sub.pricing}
+                        </span>
+                        <span className={`px-2 py-0.5 border text-[10px] font-mono font-bold uppercase tracking-widest ${statusBadge}`}>
+                          {sub.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                      <h3 className="text-xl font-black text-surface-text uppercase tracking-wider">{sub.name}</h3>
+                      <p className="text-xs font-mono text-surface-muted line-clamp-2">{sub.description}</p>
+                    </div>
+                    <div className="flex items-center justify-between pt-3 border-t border-dark-700 text-xs font-mono">
+                      <a
+                        href={sub.websiteUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-jenga-500 hover:text-jenga-400 inline-flex items-center gap-1"
+                      >
+                        <span>Visit URL</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                      <span className="text-surface-muted">
+                        {sub.createdAt ? new Date(sub.createdAt).toLocaleDateString() : 'Submitted'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="p-12 text-center bg-dark-900 border-4 border-dashed border-dark-600 rounded-none">
+              <Send className="w-12 h-12 text-surface-muted mx-auto mb-4" />
+              <h3 className="text-xl font-black text-surface-text mb-2 uppercase tracking-widest">No Tool Submissions Yet</h3>
+              <p className="text-surface-muted mb-6 max-w-sm mx-auto font-mono text-sm">
+                Submit new AI models or developer tools from the directory header to track their review status here.
+              </p>
+              <Link to="/" className="inline-flex px-6 py-2 bg-dark-800 hover:bg-jenga-500 hover:text-dark-950 text-jenga-500 font-black border-2 border-jenga-500 rounded-none uppercase tracking-widest transition-colors text-sm">
+                Go to Directory
               </Link>
             </div>
           )}

@@ -4,8 +4,20 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 import { auth, db, googleProvider } from '../firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
-import { sanitizeProfileUpdates } from '../services/securityUtils';
+import { doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { isValidHttpUrl, sanitizeProfileUpdates } from '../services/securityUtils';
+import { stackService } from '../services/stackService';
+
+function normalizeJoinedAt(value: unknown): string {
+  if (!value) return new Date().toISOString();
+  if (value instanceof Timestamp) return value.toDate().toISOString();
+  if (typeof value === 'object' && value !== null && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return new Date(value).toISOString();
+  return new Date().toISOString();
+}
 
 export enum OperationType {
   CREATE = 'create',
@@ -76,14 +88,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authError, setAuthError] = useState<Error | null>(null);
 
   useEffect(() => {
+    let unsubscribeSnapshot: (() => void) | null = null;
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+      }
+
       if (firebaseUser) {
-        // Setup snapshot listener for the user document
         const userRef = doc(db, 'users', firebaseUser.uid);
-        const unsubscribeSnapshot = onSnapshot(userRef, (docSnap) => {
+        unsubscribeSnapshot = onSnapshot(userRef, (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
-            setUser({ ...data, id: firebaseUser.uid } as User);
+            setUser({
+              ...data,
+              id: firebaseUser.uid,
+              joinedAt: normalizeJoinedAt(data.joinedAt),
+            } as User);
           }
         }, (error) => {
           try {
@@ -92,26 +114,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setAuthError(e as Error);
           }
         });
-        
+
         // Initial fetch/create
         try {
           const docSnap = await getDoc(userRef);
           if (!docSnap.exists()) {
-            const newUser: User = {
+            const fallbackAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`;
+            const rawAvatar = firebaseUser.photoURL?.trim() || '';
+            const safeAvatar = rawAvatar && isValidHttpUrl(rawAvatar, true) ? rawAvatar : fallbackAvatar;
+            const safeName = (firebaseUser.displayName?.trim() || 'Anonymous User').slice(0, 99);
+
+            const firestorePayload = {
               id: firebaseUser.uid,
-              name: firebaseUser.displayName || 'Anonymous User',
+              name: safeName,
               email: firebaseUser.email || '',
-              avatar: firebaseUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`,
-              joinedAt: new Date().toISOString(),
+              avatar: safeAvatar,
+              joinedAt: serverTimestamp(),
               savedToolIds: [],
               masteryLevel: 1,
               stacksCreated: 0
             };
-            await setDoc(userRef, newUser);
-            setUser(newUser);
+            await setDoc(userRef, firestorePayload);
+            setUser({
+              ...firestorePayload,
+              joinedAt: new Date().toISOString(),
+            });
           } else {
             const data = docSnap.data();
-            setUser({ ...data, id: firebaseUser.uid } as User);
+            setUser({
+              ...data,
+              id: firebaseUser.uid,
+              joinedAt: normalizeJoinedAt(data.joinedAt),
+            } as User);
           }
 
           // Migrate any legacy local storage stacks to user's Firestore collection
@@ -120,7 +154,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (legacyLocalStacks) {
               const parsed = JSON.parse(legacyLocalStacks);
               if (Array.isArray(parsed) && parsed.length > 0) {
-                const { stackService } = await import('../services/stackService');
                 for (const stack of parsed) {
                   if (stack?.name) {
                     await stackService.createStack(stack.name, stack.toolIds || stack.tools || []);
@@ -130,7 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               localStorage.removeItem('user_stacks');
             }
           } catch (migError) {
-            console.error("Local stack migration error:", migError);
+            console.error("Local stack migration error:", migError instanceof Error ? migError.message : "Unknown error");
             localStorage.removeItem('user_stacks');
           }
         } catch (error) {
@@ -141,14 +174,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
         setIsAuthReady(true);
-        return () => unsubscribeSnapshot();
       } else {
         setUser(null);
         setIsAuthReady(true);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+      }
+      unsubscribe();
+    };
   }, []);
 
   const login = async () => {

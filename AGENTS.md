@@ -10,17 +10,18 @@
 - **Communication:** Responses to the user should be concise, professional, and slightly energetic. Avoid robotic or overly apologetic language. 
 - **Action-Oriented:** Prefer issuing tool calls directly over explaining what you *could* do.
 
-## 🏗️ Architecture constraints
-- **Frontend Only by Default:** This app primarily operates as a Vite/React application. 
-- **Tailwind Strictness:** ALL styling must be done via Tailwind CSS utility classes. Avoid creating raw `.css` blocks unless absolutely necessary for complex keyframe animations or WebGL hooks.
-- **BYOK Policy (Bring Your Own Key):** Never embed API keys into the repository, environment variables pushed to `.env.local`, or `vite.config.ts`. API Keys (especially for `@google/genai`) must be resolved via the user's `localStorage` (`USER_GEMINI_API_KEY`). Ensure robust fallback UI telling users to provide their key.
+## 🏗️ Architecture Constraints
+- **Full-Stack Vite + Express Runtime:** Frontend operates as a Vite/React 19 SPA backed by `server.ts` (Express 5) serving REST APIs and AI proxy routes on port `3000`.
+- **Tailwind Strictness:** ALL styling must be done via Tailwind CSS v4 utility classes and design tokens defined in `index.css` (`@theme`). Avoid unnecessary raw CSS blocks.
+- **Server-Side Gemini Proxy Policy:** Never embed API keys into client source files, `vite.config.ts`, or browser storage. All `@google/genai` calls (`gemini-4-hydrogen`) must run strictly server-side via Express routes (`/api/chat`, `/api/workflow/suggest`) using `process.env.GEMINI_API_KEY`.
+- **Interactive UI Dialogs:** Never use `window.alert`, `window.confirm`, or `window.open`; render accessible inline UI banners or React modals.
 
 ## 🪝 Development Hooks & Checks
-Before completing any coding task, an AI assistant should internally confirm the following:
-1. **Linter Rule:** Run `npm run lint` and verify `eslint` throws no warnings. If the linter fails (e.g., unused variables), fix them immediately.
-2. **Secret Checking:** Run `grep -ri "api_key" .` to ensure no sensitive tokens leaked into the output code.
-3. **Scroll Resets:** Ensure new routes utilize the `window.scrollTo` component lifecycle to prevent users from spawning mid-page.
-4. **Error Handling:** Avoid logging raw `error` objects to `console.log`. Pre-parse them via `error instanceof Error ? error.message : "Unknown error"` so API tokens don't cache in network debug logs.
+Before completing any coding task, an AI assistant should confirm the following:
+1. **Linter & Typecheck:** Run `npm run lint` (`--max-warnings 0`, including Firebase security rules checks) and `npm run typecheck`.
+2. **Automated Tests:** Run `npm test` (`sync:rules` + Vitest/node test suites in `tests/`).
+3. **Scroll Resets:** Ensure route changes trigger `window.scrollTo(0, 0)` cleanly via `<ScrollToTop />` in `App.tsx`.
+4. **Sanitized Errors:** Avoid logging raw `error` objects; use `sanitizeClientErrorMessage` or `error instanceof Error ? error.message : "Unknown error"`.
 
 ## 📦 Versioning Mechanics
 - When adding a significant feature (e.g., Firestore Storage), update the **App Version** in `CHANGELOG.md` properly using SemVer formatting.

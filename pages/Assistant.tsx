@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Send, Bot, User, Loader2, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import { chatWithGemini } from '../services/geminiService';
@@ -10,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 
 export const Assistant: React.FC = () => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -21,6 +23,7 @@ export const Assistant: React.FC = () => {
     }
   ]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const initialQueryTriggered = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -30,26 +33,25 @@ export const Assistant: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!input.trim() || isLoading) return;
+  const sendMessage = useCallback(async (promptText: string) => {
+    const cleanText = promptText.trim();
+    if (!cleanText || isLoading) return;
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
-      text: input,
+      text: cleanText,
       timestamp: new Date()
     };
+
+    const history = messages.map(m => ({
+      role: m.role,
+      parts: [{ text: m.text }]
+    }));
 
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
-
-    // Format history for context (simplified)
-    const history = messages.map(m => ({
-        role: m.role,
-        parts: [{ text: m.text }]
-    }));
 
     const responseText = await chatWithGemini(userMsg.text, history);
 
@@ -62,6 +64,23 @@ export const Assistant: React.FC = () => {
 
     setMessages(prev => [...prev, botMsg]);
     setIsLoading(false);
+  }, [isLoading, messages]);
+
+  useEffect(() => {
+    const initialQ = searchParams.get('q');
+    if (!initialQ || initialQueryTriggered.current) return;
+    const timer = window.setTimeout(() => {
+      if (initialQueryTriggered.current) return;
+      initialQueryTriggered.current = true;
+      setSearchParams({}, { replace: true });
+      void sendMessage(initialQ);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [searchParams, setSearchParams, sendMessage]);
+
+  const handleSend = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    await sendMessage(input);
   };
 
   return (
@@ -72,7 +91,7 @@ export const Assistant: React.FC = () => {
                 <Sparkles className="text-jenga-500" />
                 Jenga<span className="text-jenga-500">Agent</span>
             </h1>
-            <p className="text-surface-muted text-sm mt-2 font-mono">Powered by Gemini 3 Flash</p>
+            <p className="text-surface-muted text-sm mt-2 font-mono">Powered by Gemini 4</p>
        </div>
 
        {/* Chat Area */}

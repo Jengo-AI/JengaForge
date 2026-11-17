@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getToolById } from '../constants';
-import { Layers, Trash2, ArrowRight, FolderOpen, Sparkles, Zap, Plus, ChevronRight, X, Loader2, LogIn } from 'lucide-react';
+import { Layers, Trash2, ArrowRight, FolderOpen, Sparkles, Zap, Plus, ChevronRight, X, Loader2, LogIn, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PageWrapper } from '../components/PageWrapper';
 import { useAuth } from '../context/AuthContext';
@@ -18,6 +18,9 @@ export const Stacks: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newStackName, setNewStackName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [stackToDelete, setStackToDelete] = useState<UserStack | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthReady) return;
@@ -34,12 +37,18 @@ export const Stacks: React.FC = () => {
     }
   }, [user, isAuthReady]);
 
-  const deleteStack = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this stack?')) {
-      const success = await stackService.deleteStack(id);
-      if (success) {
-        setStacks(stacks.filter(s => s.id !== id));
-      }
+  const confirmDeleteStack = async () => {
+    if (!stackToDelete || isDeleting) return;
+    setIsDeleting(true);
+    setActionError(null);
+    const success = await stackService.deleteStack(stackToDelete.id);
+    setIsDeleting(false);
+    if (success) {
+      setStacks(prev => prev.filter(s => s.id !== stackToDelete.id));
+      setStackToDelete(null);
+    } else {
+      setActionError('Unable to delete stack right now. Please try again.');
+      setStackToDelete(null);
     }
   };
 
@@ -47,10 +56,13 @@ export const Stacks: React.FC = () => {
     const stack = stacks.find(s => s.id === stackId);
     if (!stack) return;
     
+    setActionError(null);
     const newToolIds = stack.toolIds.filter(tid => tid !== toolId);
     const success = await stackService.updateStackTools(stackId, newToolIds);
     if (success) {
-      setStacks(stacks.map(s => s.id === stackId ? { ...s, toolIds: newToolIds } : s));
+      setStacks(prev => prev.map(s => s.id === stackId ? { ...s, toolIds: newToolIds } : s));
+    } else {
+      setActionError('Unable to update stack tools. Please try again.');
     }
   };
 
@@ -59,13 +71,14 @@ export const Stacks: React.FC = () => {
     if (!newStackName.trim() || !user || isCreating) return;
     
     setIsCreating(true);
+    setActionError(null);
     try {
       const newStack = await stackService.createStack(newStackName);
-      setStacks([...stacks, newStack]);
+      setStacks(prev => [...prev, newStack]);
       setNewStackName('');
       setIsCreateModalOpen(false);
-    } catch (error: any) {
-      alert(`Failed to create stack. Error: ${error?.message || error}`);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Failed to create stack.');
     } finally {
       setIsCreating(false);
     }
@@ -116,6 +129,17 @@ export const Stacks: React.FC = () => {
         <p className="text-surface-muted text-lg mb-10 max-w-md mx-auto font-mono">
             You haven't built any intelligence stacks. Head to the forge to start organizing your AI arsenal.
         </p>
+        {actionError && (
+          <div className="mb-8 max-w-xl mx-auto p-4 bg-red-950/80 border-2 border-red-500 text-red-400 font-mono text-xs flex items-center justify-between gap-4 text-left">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{actionError}</span>
+            </div>
+            <button onClick={() => setActionError(null)} className="text-red-300 hover:text-white" aria-label="Dismiss error">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
           <Link 
             to="/starter-stacks"
@@ -229,6 +253,18 @@ export const Stacks: React.FC = () => {
         </div>
       </header>
 
+      {actionError && (
+        <div className="mb-8 p-4 bg-red-950/80 border-2 border-red-500 text-red-400 font-mono text-xs flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{actionError}</span>
+          </div>
+          <button onClick={() => setActionError(null)} className="text-red-300 hover:text-white" aria-label="Dismiss error">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Embedded AI Workflow Synthesizer */}
       <div className="mb-14">
         <AIWorkflowSuggester 
@@ -262,7 +298,8 @@ export const Stacks: React.FC = () => {
                             </div>
                         </div>
                         <button 
-                            onClick={() => deleteStack(stack.id)}
+                            onClick={() => setStackToDelete(stack)}
+                            aria-label={`Delete ${stack.name}`}
                             className="p-3 text-surface-muted hover:text-red-500 transition-colors"
                         >
                             <Trash2 className="w-6 h-6" />
@@ -309,10 +346,15 @@ export const Stacks: React.FC = () => {
                         <Link to={`/stack/${stack.id}`} className="bg-dark-900 border-2 border-dark-600 text-surface-text hover:bg-jenga-500 hover:text-dark-950 hover:border-jenga-500 px-6 py-3 font-black text-xs transition-all flex items-center gap-2 rounded-none uppercase tracking-widest">
                             View Details
                         </Link>
-                        <button className="bg-dark-900 border-2 border-dark-600 text-surface-text hover:bg-jenga-500 hover:text-dark-950 hover:border-jenga-500 px-6 py-3 font-black text-xs transition-all flex items-center gap-2 rounded-none uppercase tracking-widest hidden sm:flex">
+                        {stack.toolIds.length > 0 && (
+                          <Link
+                            to={`/compare?tools=${stack.toolIds.slice(0, 5).join(',')}`}
+                            className="bg-dark-900 border-2 border-dark-600 text-surface-text hover:bg-jenga-500 hover:text-dark-950 hover:border-jenga-500 px-6 py-3 font-black text-xs transition-all flex items-center gap-2 rounded-none uppercase tracking-widest hidden sm:flex"
+                          >
                             Compare
                             <ChevronRight className="w-4 h-4" />
-                        </button>
+                          </Link>
+                        )}
                     </div>
                 </div>
             </motion.div>
@@ -390,6 +432,52 @@ export const Stacks: React.FC = () => {
                     {isCreating ? <Loader2 className="w-6 h-6 animate-spin" /> : "Initialize Stack"}
                   </button>
                 </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Stack Confirmation Modal */}
+      <AnimatePresence>
+        {stackToDelete && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+              onClick={() => !isDeleting && setStackToDelete(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-dark-800 border-4 border-red-500 w-full max-w-md rounded-none shadow-[12px_12px_0px_0px_rgba(239,68,68,1)] p-8"
+            >
+              <h3 className="text-2xl font-black text-surface-text uppercase tracking-widest mb-3">
+                Delete Stack
+              </h3>
+              <p className="text-sm font-mono text-surface-muted mb-6 leading-relaxed">
+                Are you sure you want to delete <strong className="text-surface-text">{stackToDelete.name}</strong>? This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => setStackToDelete(null)}
+                  className="px-5 py-2.5 bg-dark-900 border-2 border-dark-600 text-surface-text font-mono text-xs font-bold uppercase tracking-widest hover:border-jenga-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={confirmDeleteStack}
+                  className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white border-2 border-dark-950 font-mono text-xs font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm Delete'}
+                </button>
               </div>
             </motion.div>
           </div>

@@ -51,9 +51,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
   const [recentSearches, setRecentSearches] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem(RECENT_SEARCHES_KEY);
-      return saved ? JSON.parse(saved) : ['Gemini 3.1 Pro', 'Autonomous Developer', 'Cursor'];
+      return saved ? JSON.parse(saved) : ['Gemini 4 Argon', 'Autonomous Developer', 'Cursor Agent'];
     } catch {
-      return ['Gemini 3.1 Pro', 'Autonomous Developer'];
+      return ['Gemini 4 Argon', 'Autonomous Developer'];
     }
   });
 
@@ -652,7 +652,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
                 </span>
               </div>
               <div className="text-[10px] text-jenga-500 uppercase tracking-widest hidden md:inline">
-                JengaForge Global Index · April 2026
+                JengaForge Global Index · October 2026
               </div>
             </div>
           </motion.div>

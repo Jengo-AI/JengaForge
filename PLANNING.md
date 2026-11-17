@@ -10,25 +10,23 @@ This document tracks the strategic roadmap and high-level milestones for the Jen
 - [x] Integrate Firebase Authentication (Google OAuth)
 - [x] Implement Protected Routes and Layouts
 
-## 🟢 Phase 2: Knowledge Base & Security Hardening (COMPLETED)
-**Objective**: Create the AI tools database and ensure the platform is secure and contextually intelligent.
-- [x] Build `TOOLS_REGISTRY` mock database.
-- [x] Update Landscape state to factual April 2026 data (Gemini 3.1 Pro, ChatGPT 5.4, Claude 4.7, DeepSeek V4).
-- [x] Integrate `@google/genai` SDK for interactive Assistant.
-- [x] Eradicate hardcoded secrets and environment variable leaks (`vite.config.ts`, `firebase-applet-config.json`).
-- [x] Deploy BYOK (Bring Your Own Key) architecture in the Profile page using `localStorage`.
+## 🟢 Phase 2: Knowledge Base & Architecture Hardening (COMPLETED)
+**Objective**: Establish the canonical AI tools database and ensure all AI features operate through a clean server-side proxy.
+- [x] Build canonical `TOOLS_REGISTRY` and `STARTER_STACKS` dataset (`constants.ts`).
+- [x] Update landscape state to verified October 2026 frontier models (Claude Sonnet 5.5 / Opus 5.5, GPT-6 Astra, Gemini 4 Argon / 3.1 Pro, Grok 4.7, DeepSeek-V4.1-Flash, FLUX 3, Runway Gen-4.5, Midjourney V8.2).
+- [x] Integrate server-side `@google/genai` (`gemini-4-hydrogen`) SDK via Express proxies (`/api/chat`, `/api/workflow/suggest`) with structured schema outputs and registry bounds.
+- [x] Eliminate client-side API key storage and enforce Helmet CSP, CORS allowlists, and IP rate limiting.
 
-## 🟡 Phase 3: Community & Persistence (IN PROGRESS)
-**Objective**: Move away from mock data by heavily adopting Firestore to make saved tools, reviews, and stacks globally persistent across devices.
-- [x] Connect `localStorage` saved Stacks/Tools to authenticated Firebase user document & Firestore `/stacks` collection.
-- [x] Implement global "Tool Upvoting" / User Reviews & Star Ratings system with hardened Firestore rules.
-- [x] Enable public sharing links for User Stacks (`/stack/:id` with Clipboard Share Link).
-- [x] Full-Stack Backend Infrastructure: Server-side Gemini AI proxy (`/api/chat`), Tools REST API (`/api/v2/tools`), Rate Limiting, and Security Headers.
-- [ ] Migrate `TOOLS_REGISTRY` from local `constants.ts` to Firestore Collections.
+## 🟢 Phase 3: Community, Persistence & Rule Enforcement (COMPLETED)
+**Objective**: Persist saved tools, reviews, stacks, upvotes, and submissions cleanly in Cloud Firestore with verified security rules.
+- [x] Persist user saved tools and custom workflows in Firebase user documents & Firestore `/stacks` collection.
+- [x] Implement atomic tool upvoting (`toolUpvotes` + PII-isolated `toolStats`) and verified 1-per-user reviews/star ratings with hardened Firestore rules.
+- [x] Enable public sharing links for User Stacks (`/stack/:id` with Clipboard Share Link and Social Share cards).
+- [x] Complete REST API suite (`/api/v2/tools`, `/api/v2/tools/:id`, `/api/v2/stacks/featured`, `/api/v2/stats`, `/api/health`, `/api/sysinfo`) and route/Three.js code splitting.
 
-## 🔴 Phase 4: Platform Scalability (IN PROGRESS)
-**Objective**: Introduce crowd-sourced features and platform monetization capabilities.
-- [x] Tool Submission Portal (Users and creators can formally submit new AI tools via UI & REST API).
-- [ ] Admin Dashboard (Approve/Reject tools, monitor global API usage).
+## 🟡 Phase 4: Platform Scalability (IN PROGRESS)
+**Objective**: Expand crowd-sourced creator workflows and ecosystem observability.
+- [x] Tool Submission Portal & Profile Tracking (Users submit tools via Firestore `toolSubmissions` and track `PENDING_REVIEW` / `APPROVED` / `REJECTED` statuses in Profile).
+- [ ] Admin Moderation Dashboard (Approve/Reject queued submissions and migrate live catalog updates dynamically from Firestore).
 - [ ] Advanced Graph Analytics (Visualizing tool integrations and ecosystem overlap).
 - [ ] Native PWA Support (Progressive Web App installation).

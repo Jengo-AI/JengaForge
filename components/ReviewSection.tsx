@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { reviewService, Review } from '../services/reviewService';
-import { Star, MessageSquare, Loader2, User as UserIcon } from 'lucide-react';
+import { Star, MessageSquare, Loader2, User as UserIcon, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface ReviewSectionProps {
@@ -13,19 +13,29 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({ toolId }) => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  const [rating, setRating] = useState(5);
-  const [text, setText] = useState('');
+  const [draftRating, setDraftRating] = useState<number | null>(null);
+  const [draftText, setDraftText] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const existingUserReview = useMemo(
+    () => (user ? reviews.find(r => r.userId === user.id || r.id === `${user.id}_${toolId}`) : undefined),
+    [reviews, user, toolId]
+  );
+
+  const rating = draftRating ?? existingUserReview?.rating ?? 5;
+  const text = draftText ?? existingUserReview?.text ?? '';
 
   useEffect(() => {
-    const loadReviews = async () => {
-      setIsLoading(true);
-      const fetchedReviews = await reviewService.getToolReviews(toolId);
+    let active = true;
+    reviewService.getToolReviews(toolId).then((fetchedReviews) => {
+      if (!active) return;
       setReviews(fetchedReviews);
       setIsLoading(false);
+    });
+    return () => {
+      active = false;
     };
-
-    loadReviews();
   }, [toolId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,6 +48,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({ toolId }) => {
     if (!text.trim()) return;
 
     setIsSubmitting(true);
+    setErrorMsg(null);
     const newReview = await reviewService.addReview(
       toolId,
       user.id,
@@ -48,9 +59,11 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({ toolId }) => {
     );
     
     if (newReview) {
-      setReviews([newReview, ...reviews]);
-      setText('');
-      setRating(5);
+      setReviews(prev => [newReview, ...prev.filter(r => r.id !== newReview.id)]);
+      setDraftRating(null);
+      setDraftText(null);
+    } else {
+      setErrorMsg('Unable to save your review right now. Please try again.');
     }
     setIsSubmitting(false);
   };
@@ -63,10 +76,12 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({ toolId }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-        {/* Write a Review */}
+        {/* Write or Edit a Review */}
         <div className="lg:col-span-1">
           <div className="bg-dark-800 border-2 border-dark-600 p-6 shadow-[4px_4px_0px_0px_rgba(255,140,0,1)] rounded-none">
-            <h3 className="text-xl font-black text-surface-text uppercase tracking-widest mb-6">Leave a Review</h3>
+            <h3 className="text-xl font-black text-surface-text uppercase tracking-widest mb-6">
+              {existingUserReview ? 'Update Your Review' : 'Leave a Review'}
+            </h3>
             
             {!user ? (
               <div className="text-center py-6">
@@ -80,6 +95,13 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({ toolId }) => {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
+                {errorMsg && (
+                  <div className="p-3 bg-red-950/70 border border-red-500 text-red-400 text-xs font-mono flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-bold text-surface-muted uppercase tracking-widest mb-2">Rating</label>
                   <div className="flex items-center gap-2">
@@ -87,7 +109,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({ toolId }) => {
                       <button
                         key={star}
                         type="button"
-                        onClick={() => setRating(star)}
+                        onClick={() => setDraftRating(star)}
                         className={`p-1 transition-colors ${rating >= star ? 'text-amber-500' : 'text-dark-600 hover:text-dark-500'}`}
                       >
                         <Star className={`w-8 h-8 ${rating >= star ? 'fill-current' : ''}`} />
@@ -100,7 +122,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({ toolId }) => {
                   <label className="block text-xs font-bold text-surface-muted uppercase tracking-widest mb-2">Your Thoughts</label>
                   <textarea 
                     value={text}
-                    onChange={(e) => setText(e.target.value)}
+                    onChange={(e) => setDraftText(e.target.value)}
                     placeholder="How did this tool fit into your workflow?"
                     className="w-full bg-dark-900 border-2 border-dark-600 p-4 text-surface-text focus:outline-none focus:border-jenga-500 transition-colors font-mono min-h-[120px] rounded-none resize-y"
                     maxLength={2000}
@@ -116,7 +138,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({ toolId }) => {
                   disabled={isSubmitting || !text.trim()}
                   className="w-full bg-jenga-500 hover:bg-jenga-400 disabled:opacity-50 text-dark-950 font-black uppercase tracking-widest px-6 py-3 border-2 border-dark-950 transition-colors flex justify-center items-center rounded-none"
                 >
-                  {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Submit Review'}
+                  {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : existingUserReview ? 'Update Review' : 'Submit Review'}
                 </button>
               </form>
             )}

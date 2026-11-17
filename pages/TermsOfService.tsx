@@ -11,7 +11,7 @@ export const TermsOfService: React.FC = () => {
             <Scale className="w-8 h-8" />
           </div>
           <h1 className="text-4xl md:text-5xl font-black text-surface-text mb-4 uppercase tracking-widest">Terms of Service</h1>
-          <p className="text-surface-muted text-lg font-mono">Last updated: March 14, 2026</p>
+          <p className="text-surface-muted text-lg font-mono">Last updated: November 17, 2026</p>
         </div>
 
         <div className="prose prose-invert prose-slate max-w-none">

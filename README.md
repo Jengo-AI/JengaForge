@@ -24,13 +24,14 @@ JengaForge is an open-source, living repository and workflow architect for creat
 
 ## ✨ Key Features
 
-- **Living AI Tools & Models Registry:** Curated directory across 8 key verticals (Frontier LLMs, AI Coding IDEs, Image Generation, Video Generation, Audio/Speech, Productivity, Autonomous Agents, and Prompt Engineering). Each entry includes pricing tiers, capability radars, and last-verified timestamps.
-- **Workflow Stacks Architect:** Combine multiple complementary tools into end-to-end pipelines (e.g. *Autonomous Developer*, *Cinematic Video Creator*, *Deep Research & Synth*). Save, upvote, and share workflow blueprints with one-click public links.
-- **Interactive Multi-Model Radar Comparisons:** Side-by-side parametric radar benchmarks tracking Ease of Use, Raw Power, Community Adoption, Cost Efficiency, and Ecosystem Integration.
-- **BYOK Gemini Architecture Assistant:** Integrated conversational advisor powered by Google's Gemini SDK (`@google/genai`). Users can leverage system intelligence or bring their own key (stored strictly in browser `localStorage`).
+- **Living AI Tools & Models Registry:** Curated directory of 26 verified tools and models across 8 key verticals (Frontier LLMs, AI Coding IDEs, Image Generation, Video Generation, Audio/Speech, Productivity, Autonomous Agents, and Prompt Engineering). Each entry includes pricing tiers, capability radars, and last-verified timestamps.
+- **Workflow Stacks Architect & AI Workflow Synthesizer:** Combine complementary tools into end-to-end pipelines, clone curated starter stacks, or synthesize bounded multi-step architectures via Gemini 4 (`POST /api/workflow/suggest`). Save to Cloud Firestore and share public `/stack/:id` links.
+- **Interactive Multi-Model Radar Comparisons:** Side-by-side parametric radar benchmarks comparing up to 5 tools simultaneously with sticky baseline locking across Ease of Use, Raw Power, Community Adoption, Cost Efficiency, and Ecosystem Integration.
+- **Server-Proxied Gemini Architecture Advisor (JengaAgent):** Conversational assistant (`POST /api/chat`) and workflow synthesizer powered by `@google/genai` (`gemini-4-hydrogen`) executing securely on the Express backend.
+- **Community Upvotes, Reviews & Submissions:** Deterministic atomic tool upvoting (`toolUpvotes` + `toolStats`), verified 1-review-per-user ratings, and a moderated `PENDING_REVIEW` tool submission workflow visible in your Profile.
 - **Global Search & Command Palette (`⌘K` / `/`):** Fast multi-dimensional search indexing tools, stacks, categories, and tags with full keyboard arrow navigation.
 - **Active Deprecation Tracking:** Proactive labeling of discontinued, acquired, or legacy models (e.g., Sora Interactive, Runway Gen-2, DALL·E standalone) with recommended modern migration paths.
-- **Brutalist Infrastructure Aesthetic:** High-contrast Kenyan-inspired design system (`#0A0A0A` Jengo Black, `#FFD100` Bunifu Yellow, `#FAF9F5` Paper White) featuring line-based construction motifs and kinetic GPU-composited canvas drafting grids.
+- **Brutalist Infrastructure Aesthetic:** High-contrast Kenyan-inspired design system (`#0A0A0A` Jengo Black, `#FFD100` Bunifu Yellow, `#FAF9F5` Paper White) featuring line-based construction motifs and lazy-loaded Three.js + HTML5 Canvas drafting visuals.
 
 ---
 
@@ -38,12 +39,12 @@ JengaForge is an open-source, living repository and workflow architect for creat
 
 | Layer | Technologies |
 |---|---|
-| **Frontend Framework** | React 18, TypeScript, Vite |
+| **Frontend Framework** | React 19, TypeScript, Vite |
 | **Styling & Design System** | Tailwind CSS v4, Jengo AI Design Language v1.0 |
-| **Animation & Visuals** | Framer Motion (`motion/react`), Three.js (`@react-three/fiber`), HTML5 Canvas |
+| **Animation & Visuals** | Framer Motion (`motion/react`), Three.js (`@react-three/fiber`, lazy-loaded), HTML5 Canvas |
 | **Data Visualization** | Recharts (Radar benchmarks, capability matrices) |
-| **Backend & Storage** | Firebase Authentication, Cloud Firestore, Express / Node.js proxy |
-| **AI Integration** | Google Gen AI TypeScript SDK (`@google/genai`) |
+| **Backend & Storage** | Firebase Authentication, Cloud Firestore (hardened `firestore.rules`), Express 5 / Node.js server |
+| **AI Integration** | Server-side Google Gen AI SDK (`@google/genai`, `gemini-4-hydrogen`) |
 | **Icons & Typography** | Lucide React, Space Grotesk, Inter, JetBrains Mono |
 
 ---
@@ -51,8 +52,8 @@ JengaForge is an open-source, living repository and workflow architect for creat
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18.x or 20.x
-- npm 9+
+- Node.js 20.x or 22.x
+- npm 10+
 
 ### 1. Clone & Install
 ```bash
@@ -67,21 +68,21 @@ Copy the example environment file:
 cp .env.example .env
 ```
 
-To enable server-side Gemini Assistant proxying, set your API key in `.env`:
+To enable the server-side Gemini Assistant and Workflow Synthesizer routes (`/api/chat` and `/api/workflow/suggest`), set your API key in `.env`:
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
-*(Alternatively, users can enter their personal key anytime directly in the in-app Profile settings under BYOK mode).*
 
 ### 3. Firebase Configuration
-Firebase web configuration is provided in `firebase-applet-config.json` for seamless client-side authentication and Firestore persistence. Security is enforced directly via `firestore.rules`.
+Firebase web configuration is provided in `firebase-applet-config.json` for client-side authentication and Cloud Firestore persistence. Schema and access control are enforced via `firestore.rules`, automatically synced from `constants.ts` via `npm run sync:rules`.
 
 If you prefer to connect your own Firebase project:
 1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com).
 2. Enable **Authentication** (Email/Password & Google Provider) and **Cloud Firestore**.
 3. Update `firebase-applet-config.json` with your project's web credentials.
-4. Deploy the security rules:
+4. Sync and deploy the security rules:
    ```bash
+   npm run sync:rules
    firebase deploy --only firestore:rules
    ```
 
@@ -91,8 +92,11 @@ npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### 5. Build for Production
+### 5. Verify, Test & Build
 ```bash
+npm run lint
+npm run typecheck
+npm test
 npm run build
 ```
 
@@ -104,14 +108,14 @@ JengaForge tracks the frontier shift toward reasoning models, deep research agen
 
 | Model / Tool | Category | Status | Primary Focus |
 |---|---|---|---|
-| **Claude Sonnet 5.5** | LLM / Dev | `Active` | Coding precision benchmark, next-gen Computer Use, 40% cost reduction |
+| **Claude Sonnet 5.5** | LLM | `Active` | Coding precision benchmark, next-gen Computer Use, 40% cost reduction |
 | **Claude Opus 5.5** | LLM | `Active` | Autonomous architecture, zero-shot complex logic, senior reasoning |
 | **GPT-6 Astra** | LLM | `Active` | Multi-agent orchestration, infinite collaborative canvas, deep verification |
 | **Gemini 4 Argon** | LLM | `Active` | Enterprise frontier model with 1M context for software engineering & cyber |
 | **Gemini 3.1 Pro** | LLM | `Active` | Deep System 3 reasoning, 5M+ context window, cross-modal orchestration |
 | **Grok 4.7** | LLM | `Active` | Coding endurance self-verification and real-time global telemetry |
 | **DeepSeek-V4.1-Flash** | LLM | `Active` | Sovereign open-weight visual understanding, high math/logic efficiency |
-| **Cursor Agent (v4)** | Dev Tools | `Active` | Multi-file codebase synthesis and autonomous repository generation |
+| **Cursor Agent (v3)** | Dev Tools | `Active` | Multi-file codebase synthesis and autonomous repository generation |
 | **v0.dev (V3)** | Dev Tools | `Active` | Instant full-stack UI and component generation |
 | **Runway Gen-4.5** | Video Gen | `Active` | Directing control, camera stabilization, physics rendering |
 | **Google Veo 3.1** | Video Gen | `Active` | 1080p cinematic generation with synchronized audio |
@@ -129,7 +133,7 @@ We welcome community contributions, tool submissions, and dataset updates!
 
 - **Suggest a New AI Tool / Model:** Open an issue using the [Tool Suggestion Template](.github/ISSUE_TEMPLATE/suggest_tool.yml).
 - **Report Outdated Info or Deprecation:** Open an issue using the [Report Outdated Info Template](.github/ISSUE_TEMPLATE/report_outdated.yml).
-- **Code Contributions:** Please ensure your changes pass `npm run lint` and `npm run build` before opening a Pull Request.
+- **Code Contributions:** Please ensure your changes pass `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build` before opening a Pull Request.
 
 ---
 

@@ -41,7 +41,7 @@ test('Integration & Production Flows Verification', async (t) => {
         setDoc(doc(user1, 'toolSubmissions', submissionId), {
           id: 'cursor-pro-agent',
           name: 'Cursor Pro Agent',
-          category: 'Development',
+          category: 'Developer Tools',
           pricing: 'Paid',
           description: 'AI-first code editor autonomous workflow environment.',
           websiteUrl: 'https://cursor.com',
@@ -186,24 +186,39 @@ test('Integration & Production Flows Verification', async (t) => {
     await testEnv.cleanup();
   }
 
-  await t.test('4. Gemini BYOK Resilient Error Path Handling', async () => {
-    // Test that when an invalid BYOK key is in localStorage, chatWithGemini handles error gracefully
-    // Mock localStorage environment
-    const storage: Record<string, string> = {
-      'USER_GEMINI_API_KEY': 'AIza_fake_invalid_user_key_999999999'
-    };
-    (globalThis as any).localStorage = {
-      getItem: (key: string) => storage[key] || null,
-      setItem: (key: string, val: string) => { storage[key] = val; },
-      removeItem: (key: string) => { delete storage[key]; },
-    };
+  await t.test('4. Server-Side Gemini Proxy Resilient Error Handling', async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      // Case A: Server API key not configured (503)
+      globalThis.fetch = (async () =>
+        new Response(
+          JSON.stringify({ code: 'SERVER_API_KEY_NOT_CONFIGURED', error: 'Server missing key' }),
+          { status: 503, headers: { 'Content-Type': 'application/json' } }
+        )) as typeof fetch;
 
-    const response = await chatWithGemini('Recommend an AI stack for Next.js');
-    assert.ok(typeof response === 'string', 'Should return a user-friendly string response');
-    assert.ok(
-      response.includes('invalid') || response.includes('Profile Settings') || response.includes('BYOK Error') || response.includes('unable'),
-      'Should return friendly BYOK error notification without crashing'
-    );
+      const missingKeyRes = await chatWithGemini('Recommend an AI stack for Next.js');
+      assert.ok(typeof missingKeyRes === 'string' && missingKeyRes.includes('unavailable'));
+
+      // Case B: Rate limited (429)
+      globalThis.fetch = (async () =>
+        new Response(
+          JSON.stringify({ error: 'Too many requests' }),
+          { status: 429, headers: { 'Content-Type': 'application/json' } }
+        )) as typeof fetch;
+
+      const rateLimitRes = await chatWithGemini('Recommend an AI stack for Next.js');
+      assert.ok(rateLimitRes.includes('rate limit'));
+
+      // Case C: Network exception fallback
+      globalThis.fetch = (async () => {
+        throw new Error('Network unreachable');
+      }) as typeof fetch;
+
+      const networkErrRes = await chatWithGemini('Recommend an AI stack for Next.js');
+      assert.ok(networkErrRes.includes('trouble connecting'));
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   await t.test('5. AI Workflow Suggestion Whitelist & Task Boundary Invariants', async () => {

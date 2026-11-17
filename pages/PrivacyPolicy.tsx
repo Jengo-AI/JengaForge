@@ -11,7 +11,7 @@ export const PrivacyPolicy: React.FC = () => {
             <Shield className="w-8 h-8" />
           </div>
           <h1 className="text-4xl md:text-5xl font-black text-surface-text mb-4 uppercase tracking-widest">Privacy Policy</h1>
-          <p className="text-surface-muted text-lg font-mono">Last updated: March 14, 2026</p>
+          <p className="text-surface-muted text-lg font-mono">Last updated: November 17, 2026</p>
         </div>
 
         <div className="prose prose-invert prose-slate max-w-none">
@@ -24,9 +24,9 @@ export const PrivacyPolicy: React.FC = () => {
               JengaForge is committed to protecting your privacy. We collect information to provide better services to our users. The types of information we collect include:
             </p>
             <ul className="space-y-3 text-surface-muted mb-0 font-mono">
-              <li><strong>Account Information:</strong> When you create an account, we collect your name, email address, and profile picture.</li>
-              <li><strong>Usage Data:</strong> We automatically collect information about how you interact with our Service, including IP addresses, browser types, and pages visited.</li>
-              <li><strong>User Content:</strong> Information you provide when creating stacks, leaving reviews, or interacting with the AI assistant.</li>
+              <li><strong>Account Information:</strong> When you sign in with Google Authentication, we store your display name, email address, and profile avatar URL in Cloud Firestore.</li>
+              <li><strong>Usage Data:</strong> Server logs may record aggregate request metadata needed for rate limiting and abuse prevention.</li>
+              <li><strong>User Content:</strong> Custom stacks, reviews, tool submissions, and assistant prompts submitted through our server-side Gemini proxy (<code className="text-jenga-400">/api/chat</code> and <code className="text-jenga-400">/api/workflow/suggest</code>).</li>
             </ul>
           </div>
 

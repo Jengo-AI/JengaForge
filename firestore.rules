@@ -2,49 +2,26 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: users
-    // Document ID: {userId} (matches Firebase Auth UID)
-    // Fields:
-    //   - id: string (required, immutable, must match userId)
-    //   - name: string (required, length < 100)
-    //   - email: string (required, valid email, immutable)
-    //   - avatar: string (required, valid URL)
-    //   - joinedAt: string (required, ISO 8601 date string, immutable)
-    //   - savedToolIds: list of strings (required, size <= 500)
-    //   - masteryLevel: number (required, >= 1, immutable by client)
-    //   - stacksCreated: number (required, >= 0, immutable by client)
-    //
-    // Collection: toolSubmissions
-    // Document ID: {submissionId}
-    // Fields:
-    //   - id, name, category, pricing, description, websiteUrl, tags, submittedBy, status, createdAt
-    //
-    // Collection: toolUpvotes
-    // Document ID: {toolId}_{userId}
-    // Fields:
-    //   - toolId, userId, createdAt
-    //
-    // ===============================================================
+
+    // Global default deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
     // ===============================================================
     // Helper Functions
     // ===============================================================
-    
+
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
     function hasExactFields(fields) {
@@ -53,10 +30,6 @@ service cloud.firestore {
 
     function isValidEmail(email) {
       return email is string && email.size() <= 254 && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
-    }
-
-    function isValidUrl(url) {
-      return url is string && url.size() <= 2000 && (url.matches("^https://.*") || url.matches("^http://.*"));
     }
 
     function isSafePublicHttpsUrl(url) {
@@ -107,25 +80,42 @@ service cloud.firestore {
       return toolId is string && toolId in canonicalToolIds();
     }
 
-    function isValidDateString(dateStr) {
-      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    function isValidToolCategory(category) {
+      return category in [
+        'LLM',
+        'Image Generation',
+        'Video Generation',
+        'Productivity',
+        'Developer Tools',
+        'Agents',
+        'Audio & Speech',
+        'Prompt Engineering'
+      ];
     }
 
     function isServerTimestamp(fieldVal) {
       return fieldVal == request.time;
     }
 
-    function isTimestampOrServerTimestamp(fieldVal) {
-      return fieldVal == request.time || isValidDateString(fieldVal) || fieldVal is timestamp;
-    }
-
-    function isValidUser(data, userId) {
+    function isValidUserOnCreate(data, userId) {
       return hasExactFields(['id', 'name', 'email', 'avatar', 'joinedAt', 'savedToolIds', 'masteryLevel', 'stacksCreated']) &&
              data.id == userId &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             isValidEmail(data.email) &&
-             isValidUrl(data.avatar) &&
-             isTimestampOrServerTimestamp(data.joinedAt) &&
+             (data.email == "" || isValidEmail(data.email)) &&
+             isSafePublicHttpsUrl(data.avatar) &&
+             isServerTimestamp(data.joinedAt) &&
+             data.savedToolIds is list && data.savedToolIds.size() <= 500 &&
+             data.savedToolIds.hasOnly(canonicalToolIds()) &&
+             data.masteryLevel is number && data.masteryLevel == 1 &&
+             data.stacksCreated is number && data.stacksCreated == 0;
+    }
+
+    function isValidUserOnUpdate(data, userId) {
+      return hasExactFields(['id', 'name', 'email', 'avatar', 'joinedAt', 'savedToolIds', 'masteryLevel', 'stacksCreated']) &&
+             data.id == userId &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             (data.email == "" || isValidEmail(data.email)) &&
+             isSafePublicHttpsUrl(data.avatar) &&
              data.savedToolIds is list && data.savedToolIds.size() <= 500 &&
              data.savedToolIds.hasOnly(canonicalToolIds()) &&
              data.masteryLevel is number && data.masteryLevel >= 1 &&
@@ -133,22 +123,26 @@ service cloud.firestore {
     }
 
     function isValidStack(data, stackId) {
-      return hasExactFields(['id', 'userId', 'name', 'toolIds', 'createdAt', 'updatedAt']) &&
+      return isValidId(stackId) &&
+             hasExactFields(['id', 'userId', 'name', 'toolIds', 'createdAt', 'updatedAt']) &&
              data.id == stackId &&
              data.userId == request.auth.uid &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.toolIds is list && data.toolIds.size() <= 100 &&
              data.toolIds.hasOnly(canonicalToolIds()) &&
-             (isTimestampOrServerTimestamp(data.createdAt) || (resource != null && data.createdAt == resource.data.createdAt)) &&
-             isTimestampOrServerTimestamp(data.updatedAt);
+             (isServerTimestamp(data.createdAt) || (resource != null && data.createdAt == resource.data.createdAt)) &&
+             isServerTimestamp(data.updatedAt);
     }
 
-    function isValidReview(data) {
-      return hasRequiredFields(['toolId', 'userId', 'userName', 'rating', 'text', 'createdAt']) &&
+    function isValidReview(data, reviewId) {
+      return isValidId(reviewId) &&
+             data.keys().hasAll(['toolId', 'userId', 'userName', 'rating', 'text', 'createdAt']) &&
+             data.keys().hasOnly(['id', 'toolId', 'userId', 'userName', 'userAvatar', 'rating', 'text', 'createdAt', 'updatedAt']) &&
+             (!('id' in data) || data.id == reviewId) &&
              data.userId == request.auth.uid &&
              isCanonicalToolId(data.toolId) &&
              data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
-             (!('userAvatar' in data) || data.userAvatar == "" || isValidUrl(data.userAvatar)) &&
+             (!('userAvatar' in data) || data.userAvatar == "" || isSafePublicHttpsUrl(data.userAvatar)) &&
              data.rating is number && data.rating >= 1 && data.rating <= 5 &&
              data.text is string && data.text.size() <= 2000 &&
              (isServerTimestamp(data.createdAt) || (resource != null && data.createdAt == resource.data.createdAt)) &&
@@ -161,81 +155,94 @@ service cloud.firestore {
              data.status == "PENDING_REVIEW" &&
              data.id is string && data.id.size() >= 2 && data.id.size() <= 80 &&
              data.name is string && data.name.size() >= 2 && data.name.size() <= 80 &&
-             data.category is string &&
+             isValidToolCategory(data.category) &&
              data.pricing in ['Free', 'Freemium', 'Paid', 'Enterprise'] &&
              data.description is string && data.description.size() >= 10 && data.description.size() <= 2000 &&
              isSafePublicHttpsUrl(data.websiteUrl) &&
              data.tags is list && data.tags.size() <= 10 &&
+             (data.tags.size() == 0 || (data.tags[0] is string && data.tags[0].size() > 0 && data.tags[0].size() <= 50)) &&
              isServerTimestamp(data.createdAt);
     }
 
+    function isVoteOwnedByCaller(voteId) {
+      return voteId.size() > request.auth.uid.size() + 1 &&
+             voteId[voteId.size() - request.auth.uid.size() - 1 : voteId.size()] == '_' + request.auth.uid;
+    }
+
     // ===============================================================
-    // Rules
+    // Collection Rules
     // ===============================================================
 
     match /users/{userId} {
       // Only the owner can read their profile
-      allow read: if isOwner(userId);
-      
+      allow get, list: if isOwner(userId) && isValidId(userId);
+
       // Owner can create their profile
-      allow create: if isOwner(userId) && isValidUser(request.resource.data, userId);
-      
-      // Owner can update their profile, but cannot change id, email, joinedAt, masteryLevel, or stacksCreated
-      allow update: if isOwner(userId) && 
-                    isValidUser(request.resource.data, userId) &&
+      allow create: if isOwner(userId) &&
+                    isValidId(userId) &&
+                    isValidUserOnCreate(request.resource.data, userId);
+
+      // Owner can update allowed profile fields only
+      allow update: if isOwner(userId) &&
+                    isValidId(userId) &&
+                    isValidUserOnUpdate(request.resource.data, userId) &&
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'avatar', 'savedToolIds']) &&
                     request.resource.data.id == resource.data.id &&
                     request.resource.data.email == resource.data.email &&
                     request.resource.data.joinedAt == resource.data.joinedAt &&
                     request.resource.data.masteryLevel == resource.data.masteryLevel &&
                     request.resource.data.stacksCreated == resource.data.stacksCreated;
-                    
+
       allow delete: if false; // Users cannot be deleted from the client
     }
 
     match /stacks/{stackId} {
-      // Anyone can read a stack (useful for sharing)
+      // Shared stacks are intentionally public for link sharing
       allow read: if true;
-      
+
       allow create: if isAuthenticated() && isValidStack(request.resource.data, stackId);
-      
-      // Owner can update, but cannot change id, userId, or createdAt
-      allow update: if isAuthenticated() && 
+
+      // Owner can update allowed fields while preserving id, userId, and createdAt
+      allow update: if isAuthenticated() &&
                     isOwner(resource.data.userId) &&
                     isValidStack(request.resource.data, stackId) &&
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'toolIds', 'updatedAt']) &&
                     request.resource.data.id == resource.data.id &&
                     request.resource.data.userId == resource.data.userId &&
                     request.resource.data.createdAt == resource.data.createdAt;
-                    
+
       allow delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
 
     match /reviews/{reviewId} {
-      // Anyone can read reviews
+      // Community tool reviews are publicly readable
       allow read: if true;
-      
+
       // Enforce 1 review per user per tool via deterministic document ID: {userId}_{toolId}
-      allow create: if isAuthenticated() && 
+      allow create: if isAuthenticated() &&
                     reviewId == request.auth.uid + '_' + request.resource.data.toolId &&
-                    isValidReview(request.resource.data);
-      
+                    isValidReview(request.resource.data, reviewId);
+
       // Owner can update their review while preserving userId, toolId, and initial createdAt
-      allow update: if isAuthenticated() && 
+      allow update: if isAuthenticated() &&
                     isOwner(resource.data.userId) &&
                     reviewId == resource.data.userId + '_' + resource.data.toolId &&
-                    isValidReview(request.resource.data) &&
+                    isValidReview(request.resource.data, reviewId) &&
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['id', 'userName', 'userAvatar', 'rating', 'text', 'updatedAt']) &&
                     request.resource.data.userId == resource.data.userId &&
                     request.resource.data.toolId == resource.data.toolId &&
                     request.resource.data.createdAt == resource.data.createdAt;
-                    
+
       allow delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
 
     match /toolSubmissions/{submissionId} {
       // Authenticated creators can view their own submissions
-      allow read: if isAuthenticated() && resource.data.submittedBy == request.auth.uid;
+      allow get, list: if isAuthenticated() && resource.data.submittedBy == request.auth.uid;
 
       // Only authenticated users can submit tools, locked to PENDING_REVIEW and their verified UID
-      allow create: if isAuthenticated() && 
+      allow create: if isAuthenticated() &&
+                    isValidId(submissionId) &&
                     request.resource.data.submittedBy == request.auth.uid &&
                     request.resource.data.status == "PENDING_REVIEW" &&
                     isValidToolSubmission(request.resource.data);
@@ -244,20 +251,54 @@ service cloud.firestore {
     }
 
     match /toolUpvotes/{voteId} {
-      // Anyone can read vote tally documents
-      allow read: if true;
+      // Users can check their own vote status without exposing other voters' UIDs
+      allow get: if isAuthenticated() &&
+                 ((resource != null && resource.data.userId == request.auth.uid) ||
+                  (resource == null && isVoteOwnedByCaller(voteId)));
+
+      allow list: if isAuthenticated() && resource.data.userId == request.auth.uid;
 
       // Authenticated user can cast exactly 1 upvote per canonical tool (voteId: {toolId}_{userId})
-      allow create: if isAuthenticated() && 
+      allow create: if isAuthenticated() &&
+                    isValidId(voteId) &&
+                    hasExactFields(['toolId', 'userId', 'createdAt']) &&
                     voteId == request.resource.data.toolId + '_' + request.auth.uid &&
                     request.resource.data.userId == request.auth.uid &&
                     isCanonicalToolId(request.resource.data.toolId) &&
                     isServerTimestamp(request.resource.data.createdAt);
 
-      // User can retract their upvote
+      // User can retract their own upvote
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
 
       allow update: if false;
+    }
+
+    match /toolStats/{toolId} {
+      // Aggregate upvote counts are public and contain zero PII
+      allow read: if true;
+
+      // Counter increments/decrements only when matched with caller's toolUpvotes create/delete
+      allow create: if isAuthenticated() &&
+                    isCanonicalToolId(toolId) &&
+                    hasExactFields(['upvotesCount', 'updatedAt']) &&
+                    request.resource.data.upvotesCount == 1 &&
+                    isServerTimestamp(request.resource.data.updatedAt) &&
+                    existsAfter(/databases/$(database)/documents/toolUpvotes/$(toolId + '_' + request.auth.uid));
+
+      allow update: if isAuthenticated() &&
+                    isCanonicalToolId(toolId) &&
+                    hasExactFields(['upvotesCount', 'updatedAt']) &&
+                    request.resource.data.upvotesCount is int &&
+                    request.resource.data.upvotesCount >= 0 &&
+                    isServerTimestamp(request.resource.data.updatedAt) &&
+                    ((request.resource.data.upvotesCount == resource.data.upvotesCount + 1 &&
+                      !exists(/databases/$(database)/documents/toolUpvotes/$(toolId + '_' + request.auth.uid)) &&
+                      existsAfter(/databases/$(database)/documents/toolUpvotes/$(toolId + '_' + request.auth.uid))) ||
+                     (request.resource.data.upvotesCount == resource.data.upvotesCount - 1 &&
+                      exists(/databases/$(database)/documents/toolUpvotes/$(toolId + '_' + request.auth.uid)) &&
+                      !existsAfter(/databases/$(database)/documents/toolUpvotes/$(toolId + '_' + request.auth.uid))));
+
+      allow delete: if false;
     }
   }
 }

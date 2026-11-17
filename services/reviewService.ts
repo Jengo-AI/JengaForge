@@ -1,7 +1,8 @@
 import { collection, doc, getDoc, setDoc, getDocs, query, where, orderBy, limit, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { handleFirestoreError, OperationType } from '../context/AuthContext';
-import { sanitizeClientErrorMessage } from './securityUtils';
+import { getToolById } from '../constants';
+import { isValidHttpUrl, sanitizeClientErrorMessage } from './securityUtils';
 
 export interface Review {
   id: string;
@@ -30,6 +31,7 @@ function normalizeTimestamp(value: unknown): string {
 
 export const reviewService = {
   getToolReviews: async (toolId: string): Promise<Review[]> => {
+    if (!getToolById(toolId)) return [];
     try {
       const q = query(
         collection(db, 'reviews'),
@@ -72,10 +74,14 @@ export const reviewService = {
     if (!currentUser) {
       throw new Error("Authentication required to submit a review.");
     }
+    if (!getToolById(toolId)) {
+      throw new Error("Cannot submit review for an unregistered tool.");
+    }
 
     const userId = currentUser.uid;
-    const userName = currentUser.displayName?.trim() || 'Verified Builder';
-    const userAvatar = currentUser.photoURL || '';
+    const userName = (currentUser.displayName?.trim() || 'Verified Builder').slice(0, 99);
+    const rawAvatar = currentUser.photoURL?.trim() || '';
+    const userAvatar = rawAvatar && isValidHttpUrl(rawAvatar, true) ? rawAvatar : '';
     const reviewId = `${userId}_${toolId}`;
     const reviewRef = doc(db, 'reviews', reviewId);
 

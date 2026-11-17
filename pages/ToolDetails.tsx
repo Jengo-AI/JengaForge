@@ -23,7 +23,7 @@ export const ToolDetails: React.FC = () => {
   const initialTool = useMemo(() => getToolById(id || '') || null, [id]);
   const [tool, setTool] = useState<Tool | null>(initialTool);
   const [relatedTools, setRelatedTools] = useState<Tool[]>([]);
-  const [upvotes, setUpvotes] = useState<number>(initialTool?.reviews || 0);
+  const [upvotes, setUpvotes] = useState<number>(0);
   const [hasUpvoted, setHasUpvoted] = useState(false);
   const [isUpvoting, setIsUpvoting] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -39,11 +39,14 @@ export const ToolDetails: React.FC = () => {
   useEffect(() => {
     if (!id) return;
     setIsLoading(true);
-    toolService.fetchToolById(id).then(res => {
+    Promise.all([
+      toolService.fetchToolById(id),
+      toolService.getToolUpvotes(id),
+    ]).then(([res, upvoteCount]) => {
       if (res.tool) {
         setTool(res.tool);
-        setUpvotes(res.tool.reviews || 0);
       }
+      setUpvotes(upvoteCount);
       if (res.related && res.related.length > 0) {
         setRelatedTools(res.related);
       } else if (res.tool) {
@@ -54,6 +57,14 @@ export const ToolDetails: React.FC = () => {
       setIsLoading(false);
     });
   }, [id]);
+
+  useEffect(() => {
+    if (!id || !user) {
+      setHasUpvoted(false);
+      return;
+    }
+    toolService.hasUserUpvoted(id).then(setHasUpvoted);
+  }, [id, user]);
 
   useEffect(() => {
     if (tool) {
@@ -84,6 +95,10 @@ export const ToolDetails: React.FC = () => {
 
   const handleUpvote = async () => {
     if (!tool || isUpvoting) return;
+    if (!user) {
+      openAuthModal();
+      return;
+    }
     setIsUpvoting(true);
     const res = await toolService.upvoteTool(tool.id);
     setIsUpvoting(false);
@@ -372,7 +387,7 @@ export const ToolDetails: React.FC = () => {
                     Agent's Choice
                 </h3>
                 <p className="text-surface-muted text-sm italic leading-relaxed font-mono">
-                    "{tool.name} is a high-impact asset for {tool.category.toLowerCase()} workflows. Our March 2026 stress tests confirm its raw power is among the top 5% in the repository."
+                    &ldquo;{tool.name} is a high-impact asset for {tool.category.toLowerCase()} workflows. Our {tool.lastVerified || 'October 2026'} benchmarks confirm its raw power stands out in the repository.&rdquo;
                 </p>
             </div>
         </div>
@@ -380,7 +395,7 @@ export const ToolDetails: React.FC = () => {
 
       {/* Review Section */}
       <div className="container mx-auto px-4">
-        <ReviewSection toolId={tool.id} />
+        <ReviewSection key={tool.id} toolId={tool.id} />
       </div>
 
       {/* Related Tools */}

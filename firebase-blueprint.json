@@ -88,6 +88,10 @@
       "description": "A user review and rating for a specific AI tool.",
       "type": "object",
       "properties": {
+        "id": {
+          "type": "string",
+          "description": "Deterministic review identifier ({userId}_{toolId})."
+        },
         "toolId": {
           "type": "string",
           "description": "The ID of the tool being reviewed."
@@ -200,6 +204,23 @@
       },
       "required": ["toolId", "userId", "createdAt"]
     }
+    "ToolStat": {
+      "title": "ToolStat",
+      "description": "Aggregate public upvote counter for a canonical tool.",
+      "type": "object",
+      "properties": {
+        "upvotesCount": {
+          "type": "number",
+          "description": "Total persisted community upvotes for the tool."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last upvote tally update."
+        }
+      },
+      "required": ["upvotesCount", "updatedAt"]
+    }
   },
   "firestore": {
     "users/{userId}": {
@@ -230,7 +251,13 @@
       "schema": {
         "$ref": "#/entities/ToolUpvote"
       },
-      "description": "Stores persistent user upvotes with deterministic IDs {toolId}_{userId}."
+      "description": "Stores private per-user upvotes with deterministic IDs {toolId}_{userId}."
+    },
+    "toolStats/{toolId}": {
+      "schema": {
+        "$ref": "#/entities/ToolStat"
+      },
+      "description": "Stores public aggregate upvote counters keyed by canonical toolId."
     }
   }
 }

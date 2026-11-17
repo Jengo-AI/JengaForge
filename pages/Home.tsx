@@ -1,5 +1,5 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useRef, useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { FEATURED_STACKS, TOOLS_REGISTRY } from '../constants';
 import { ToolCard } from '../components/ToolCard';
 import { Tool, ToolCategory } from '../types';
@@ -7,15 +7,14 @@ import { toolService } from '../services/toolService';
 import { SubmitToolModal } from '../components/SubmitToolModal';
 import { 
   Search, Layers, ArrowRight, Bot, X, ChevronDown, Filter, 
-  ChevronLeft, ChevronRight, Plus 
+  ChevronLeft, ChevronRight, Plus, CheckCircle2
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'motion/react';
-import { Canvas } from '@react-three/fiber';
-import { Robot3D, ParticleField, ArchitecturalGrid } from '../components/Robot3D';
 
 import { AIWorkflowSuggester } from '../components/AIWorkflowSuggester';
 import { PageWrapper } from '../components/PageWrapper';
+
+const HeroCanvas = React.lazy(() => import('../components/HeroCanvas').then(m => ({ default: m.HeroCanvas })));
 
 export const Home: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -31,9 +30,8 @@ export const Home: React.FC = () => {
   const [totalTools, setTotalTools] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
-  const [apiLatency, setApiLatency] = useState<number | null>(null);
-  const [apiStatus, setApiStatus] = useState<'ONLINE' | 'FALLBACK' | 'CONNECTING'>('CONNECTING');
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [submissionNotice, setSubmissionNotice] = useState(false);
 
   const updateFilters = (updates: Record<string, string>) => {
     const newParams = new URLSearchParams(searchParams);
@@ -44,7 +42,6 @@ export const Home: React.FC = () => {
         newParams.delete(key);
       }
     });
-    // Reset page to 1 on filter changes unless explicitly changing page
     if (!('page' in updates)) {
       newParams.delete('page');
     }
@@ -75,10 +72,8 @@ export const Home: React.FC = () => {
       setTools(response.data);
       setTotalTools(response.meta.total);
       setTotalPages(response.meta.totalPages);
-      setApiStatus(response.status === 'fallback' ? 'FALLBACK' : 'ONLINE');
     } catch (err) {
-      console.error('Failed to load tools from full-stack API:', err);
-      setApiStatus('FALLBACK');
+      console.error('Failed to load tools from API:', err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setIsLoading(false);
     }
@@ -87,18 +82,6 @@ export const Home: React.FC = () => {
   useEffect(() => {
     loadTools();
   }, [loadTools]);
-
-  // Ping backend health
-  useEffect(() => {
-    toolService.checkServerHealth().then(res => {
-      if (res.ok) {
-        setApiLatency(res.latencyMs);
-        setApiStatus('ONLINE');
-      } else {
-        setApiStatus('FALLBACK');
-      }
-    });
-  }, []);
 
   const handlePageChange = (newPage: number) => {
     updateFilters({ page: newPage.toString() });
@@ -123,14 +106,9 @@ export const Home: React.FC = () => {
         
         {/* Floating 3D Architectural Forge & Blueprint Grid */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-          <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
-            <ambientLight intensity={0.65} />
-            <directionalLight position={[8, 12, 6]} intensity={1.4} />
-            <directionalLight position={[-8, -4, -4]} intensity={0.8} color="#FFD100" />
-            <ArchitecturalGrid />
-            <Robot3D />
-            <ParticleField />
-          </Canvas>
+          <Suspense fallback={null}>
+            <HeroCanvas />
+          </Suspense>
         </div>
 
         <motion.div 
@@ -170,7 +148,7 @@ export const Home: React.FC = () => {
               <input
                 type="text"
                 className="block w-full pl-12 pr-4 py-4 md:py-5 bg-dark-800 border-2 border-dark-600 rounded-none text-surface-text placeholder-surface-muted focus:outline-none focus:ring-0 focus:border-jenga-500 transition-all text-sm md:text-lg font-mono uppercase tracking-widest"
-                placeholder="Search 'Claude 4.7', 'DeepSeek', or 'Video Agents'..."
+                placeholder="Search 'Claude Sonnet 5.5', 'DeepSeek', or 'Video Agents'..."
                 value={searchTerm}
                 onChange={(e) => {
                   updateFilters({ q: e.target.value });
@@ -205,15 +183,6 @@ export const Home: React.FC = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <h2 className="text-3xl font-black uppercase tracking-widest text-jenga-500 hidden lg:block">Explore Tools</h2>
-                
-                {/* Full-Stack API Status Pill */}
-                <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 bg-dark-900 border border-dark-600 text-[10px] font-mono uppercase tracking-widest">
-                  <span className={`w-2 h-2 rounded-full ${apiStatus === 'ONLINE' ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`} />
-                  <span className="text-surface-muted">API:</span>
-                  <span className={apiStatus === 'ONLINE' ? 'text-green-400 font-bold' : 'text-amber-400 font-bold'}>
-                    {apiStatus} {apiLatency ? `(${apiLatency}ms)` : ''}
-                  </span>
-                </div>
               </div>
               
               <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
@@ -369,11 +338,37 @@ export const Home: React.FC = () => {
         )}
       </section>
 
+      {submissionNotice && (
+        <div className="container mx-auto px-4">
+          <div className="bg-dark-800 border-2 border-emerald-500 p-4 flex items-center justify-between gap-4 font-mono text-xs">
+            <div className="flex items-center gap-3 text-emerald-400">
+              <CheckCircle2 className="w-5 h-5 shrink-0" />
+              <span>Submission queued for review. Track its status anytime in your Profile.</span>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <Link to="/profile" className="text-jenga-500 hover:text-jenga-400 font-bold uppercase tracking-widest">
+                View Profile
+              </Link>
+              <button
+                onClick={() => setSubmissionNotice(false)}
+                className="text-surface-muted hover:text-surface-text"
+                aria-label="Dismiss notice"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tool Submission Modal */}
       <SubmitToolModal
         isOpen={isSubmitModalOpen}
         onClose={() => setIsSubmitModalOpen(false)}
-        onSubmitted={() => loadTools()}
+        onSubmitted={() => {
+          setSubmissionNotice(true);
+          loadTools();
+        }}
       />
 
       {/* AI Agents Spotlight Section */}

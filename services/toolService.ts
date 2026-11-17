@@ -1,6 +1,17 @@
 import { Tool, ToolSubmission, PlatformStats, ToolsApiResponse } from '../types';
 import { TOOLS_REGISTRY, getToolById as getLocalToolById } from '../constants';
-import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  setDoc,
+  where,
+  runTransaction,
+  serverTimestamp,
+  Timestamp,
+} from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { isValidHttpUrl, sanitizeClientErrorMessage } from './securityUtils';
 
@@ -19,6 +30,19 @@ export interface UpvoteResult {
   upvotes?: number;
   toolId?: string;
   message?: string;
+}
+
+function normalizeTimestamp(value: unknown): string {
+  if (!value) return new Date().toISOString();
+  if (value instanceof Timestamp) {
+    return value.toDate().toISOString();
+  }
+  if (typeof value === 'object' && value !== null && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return new Date(value).toISOString();
+  return new Date().toISOString();
 }
 
 export const toolService = {
@@ -46,7 +70,7 @@ export const toolService = {
       throw new Error('Malformed API response');
     } catch (err) {
       console.warn('[toolService] Backend unreachable, falling back to local registry:', err);
-      
+
       // Resilient client-side fallback
       const q = (params.q || '').toLowerCase().trim();
       const category = params.category;
@@ -56,8 +80,8 @@ export const toolService = {
       const limit = params.limit || 9;
 
       let filtered = TOOLS_REGISTRY.filter(tool => {
-        const matchQ = !q || tool.name.toLowerCase().includes(q) || 
-          tool.description.toLowerCase().includes(q) || 
+        const matchQ = !q || tool.name.toLowerCase().includes(q) ||
+          tool.description.toLowerCase().includes(q) ||
           tool.tags.some(t => t.toLowerCase().includes(q));
         const matchCat = !category || category === 'All' || tool.category.toLowerCase() === category.toLowerCase();
         const matchPrice = !pricing || pricing === 'All' || tool.pricing.toLowerCase() === pricing.toLowerCase();
@@ -110,11 +134,28 @@ export const toolService = {
 
     // Fallback
     const local = getLocalToolById(id) || null;
-    const related = local 
+    const related = local
       ? TOOLS_REGISTRY.filter(t => t.id !== local.id && (t.category === local.category || t.tags.some(tag => local.tags.includes(tag)))).slice(0, 5)
       : [];
 
     return { tool: local, related };
+  },
+
+  /**
+   * Fetch the persisted aggregate community upvote count for a canonical tool.
+   */
+  getToolUpvotes: async (toolId: string): Promise<number> => {
+    if (!getLocalToolById(toolId)) return 0;
+    try {
+      const statsSnap = await getDoc(doc(db, 'toolStats', toolId));
+      if (statsSnap.exists()) {
+        const count = statsSnap.data()?.upvotesCount;
+        return typeof count === 'number' && count >= 0 ? count : 0;
+      }
+      return 0;
+    } catch {
+      return 0;
+    }
   },
 
   /**
@@ -134,8 +175,7 @@ export const toolService = {
   },
 
   /**
-   * Toggle persistent upvote for a tool via Firestore (1 user + 1 tool = 1 vote).
-   * Survives restarts and scales seamlessly across multi-instance infrastructure.
+   * Toggle persistent upvote for a tool via atomic Firestore transaction (1 user + 1 tool = 1 vote).
    */
   upvoteTool: async (toolId: string): Promise<UpvoteResult> => {
     const user = auth.currentUser;
@@ -155,33 +195,92 @@ export const toolService = {
 
     const voteDocId = `${toolId}_${user.uid}`;
     const voteRef = doc(db, 'toolUpvotes', voteDocId);
+    const statsRef = doc(db, 'toolStats', toolId);
 
     try {
-      const voteSnap = await getDoc(voteRef);
-      if (voteSnap.exists()) {
-        await deleteDoc(voteRef);
-        return {
-          status: 'success',
-          action: 'removed',
-          toolId,
-          message: 'Upvote removed.',
-        };
-      } else {
-        await setDoc(voteRef, {
-          toolId,
-          userId: user.uid,
-          createdAt: serverTimestamp(),
-        });
-        return {
-          status: 'success',
-          action: 'added',
-          toolId,
-          message: 'Upvote recorded.',
-        };
-      }
+      const result = await runTransaction(db, async (tx) => {
+        const voteSnap = await tx.get(voteRef);
+        const statsSnap = await tx.get(statsRef);
+        const currentCount = statsSnap.exists() && typeof statsSnap.data()?.upvotesCount === 'number'
+          ? Math.max(0, Math.floor(statsSnap.data().upvotesCount))
+          : 0;
+
+        if (voteSnap.exists()) {
+          const nextCount = Math.max(0, currentCount - 1);
+          tx.delete(voteRef);
+          if (statsSnap.exists()) {
+            tx.update(statsRef, {
+              upvotesCount: nextCount,
+              updatedAt: serverTimestamp(),
+            });
+          }
+          return { action: 'removed' as const, upvotes: nextCount };
+        } else {
+          const nextCount = currentCount + 1;
+          tx.set(voteRef, {
+            toolId,
+            userId: user.uid,
+            createdAt: serverTimestamp(),
+          });
+          if (statsSnap.exists()) {
+            tx.update(statsRef, {
+              upvotesCount: nextCount,
+              updatedAt: serverTimestamp(),
+            });
+          } else {
+            tx.set(statsRef, {
+              upvotesCount: 1,
+              updatedAt: serverTimestamp(),
+            });
+          }
+          return { action: 'added' as const, upvotes: nextCount };
+        }
+      });
+
+      return {
+        status: 'success',
+        action: result.action,
+        upvotes: result.upvotes,
+        toolId,
+        message: result.action === 'added' ? 'Upvote recorded.' : 'Upvote removed.',
+      };
     } catch (err: unknown) {
       const userMessage = sanitizeClientErrorMessage(err, 'Unable to update upvote. Please try again.');
       return { status: 'error', message: userMessage };
+    }
+  },
+
+  /**
+   * Fetch the signed-in creator's own community tool submissions.
+   */
+  getUserSubmissions: async (): Promise<ToolSubmission[]> => {
+    const user = auth.currentUser;
+    if (!user) return [];
+    try {
+      const q = query(
+        collection(db, 'toolSubmissions'),
+        where('submittedBy', '==', user.uid)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs
+        .map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: data.id || docSnap.id,
+            name: data.name,
+            category: data.category,
+            pricing: data.pricing,
+            description: data.description,
+            websiteUrl: data.websiteUrl,
+            tags: Array.isArray(data.tags) ? data.tags : [],
+            submittedBy: data.submittedBy,
+            status: data.status || 'PENDING_REVIEW',
+            createdAt: normalizeTimestamp(data.createdAt),
+          } as ToolSubmission;
+        })
+        .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    } catch {
+      return [];
     }
   },
 
@@ -192,9 +291,9 @@ export const toolService = {
   submitTool: async (submission: ToolSubmission): Promise<{ success: boolean; message: string; data?: any }> => {
     const user = auth.currentUser;
     if (!user) {
-      return { 
-        success: false, 
-        message: 'Authentication required: You must be signed in with your verified account to submit a tool.' 
+      return {
+        success: false,
+        message: 'Authentication required: You must be signed in with your verified account to submit a tool.'
       };
     }
 
@@ -209,6 +308,10 @@ export const toolService = {
     const submissionId = `${newId}_${Date.now()}`;
     const submissionRef = doc(db, 'toolSubmissions', submissionId);
 
+    const cleanTags = Array.isArray(submission.tags)
+      ? submission.tags.map(t => String(t).trim().slice(0, 50)).filter(Boolean).slice(0, 10)
+      : [];
+
     const submissionPayload = {
       id: newId,
       name: submission.name.trim().slice(0, 80),
@@ -216,7 +319,7 @@ export const toolService = {
       pricing: submission.pricing,
       description: submission.description.trim().slice(0, 2000),
       websiteUrl: submission.websiteUrl.trim().slice(0, 2000),
-      tags: Array.isArray(submission.tags) ? submission.tags.slice(0, 10) : [submission.category.toLowerCase()],
+      tags: cleanTags.length > 0 ? cleanTags : [submission.category.toLowerCase()],
       submittedBy: user.uid,
       status: 'PENDING_REVIEW' as const,
       createdAt: serverTimestamp(),
