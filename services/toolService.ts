@@ -1,5 +1,5 @@
 import { Tool, ToolSubmission, PlatformStats, ToolsApiResponse } from '../types';
-import { TOOLS_REGISTRY, getToolById as getLocalToolById } from '../constants';
+import { getToolById as getLocalToolById, queryToolsRegistry, getRelatedTools } from '../constants';
 import {
   collection,
   doc,
@@ -10,10 +10,9 @@ import {
   where,
   runTransaction,
   serverTimestamp,
-  Timestamp,
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { isValidHttpUrl, sanitizeClientErrorMessage } from './securityUtils';
+import { isValidHttpUrl, sanitizeClientErrorMessage, normalizeIsoTimestamp } from './securityUtils';
 
 export interface FetchToolsParams {
   q?: string;
@@ -30,19 +29,6 @@ export interface UpvoteResult {
   upvotes?: number;
   toolId?: string;
   message?: string;
-}
-
-function normalizeTimestamp(value: unknown): string {
-  if (!value) return new Date().toISOString();
-  if (value instanceof Timestamp) {
-    return value.toDate().toISOString();
-  }
-  if (typeof value === 'object' && value !== null && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
-    return (value as { toDate: () => Date }).toDate().toISOString();
-  }
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return new Date(value).toISOString();
-  return new Date().toISOString();
 }
 
 export const toolService = {
@@ -72,43 +58,15 @@ export const toolService = {
       console.warn('[toolService] Backend unreachable, falling back to local registry:', err);
 
       // Resilient client-side fallback
-      const q = (params.q || '').toLowerCase().trim();
-      const category = params.category;
-      const pricing = params.pricing;
-      const sort = params.sort || 'relevance';
-      const page = params.page || 1;
-      const limit = params.limit || 9;
-
-      let filtered = TOOLS_REGISTRY.filter(tool => {
-        const matchQ = !q || tool.name.toLowerCase().includes(q) ||
-          tool.description.toLowerCase().includes(q) ||
-          tool.tags.some(t => t.toLowerCase().includes(q));
-        const matchCat = !category || category === 'All' || tool.category.toLowerCase() === category.toLowerCase();
-        const matchPrice = !pricing || pricing === 'All' || tool.pricing.toLowerCase() === pricing.toLowerCase();
-        return matchQ && matchCat && matchPrice;
+      const { data, meta } = queryToolsRegistry({
+        ...params,
+        limit: params.limit || 9,
       });
-
-      if (sort === 'rating') {
-        filtered = [...filtered].sort((a, b) => b.rating - a.rating);
-      } else if (sort === 'reviews') {
-        filtered = [...filtered].sort((a, b) => b.reviews - a.reviews);
-      } else if (sort === 'name') {
-        filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-      }
-
-      const total = filtered.length;
-      const start = (page - 1) * limit;
-      const paginated = filtered.slice(start, start + limit);
 
       return {
         status: 'fallback',
-        data: paginated,
-        meta: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit) || 1,
-        }
+        data,
+        meta,
       };
     }
   },
@@ -134,11 +92,7 @@ export const toolService = {
 
     // Fallback
     const local = getLocalToolById(id) || null;
-    const related = local
-      ? TOOLS_REGISTRY.filter(t => t.id !== local.id && (t.category === local.category || t.tags.some(tag => local.tags.includes(tag)))).slice(0, 5)
-      : [];
-
-    return { tool: local, related };
+    return { tool: local, related: local ? getRelatedTools(local) : [] };
   },
 
   /**
@@ -275,7 +229,7 @@ export const toolService = {
             tags: Array.isArray(data.tags) ? data.tags : [],
             submittedBy: data.submittedBy,
             status: data.status || 'PENDING_REVIEW',
-            createdAt: normalizeTimestamp(data.createdAt),
+            createdAt: normalizeIsoTimestamp(data.createdAt),
           } as ToolSubmission;
         })
         .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));

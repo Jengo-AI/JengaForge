@@ -8,6 +8,13 @@ import { motion, AnimatePresence } from 'motion/react';
 
 import { PageWrapper } from '../components/PageWrapper';
 
+const SPEC_BENCHMARK_ROWS: { key: keyof Tool['specs']; label: string }[] = [
+  { key: 'power', label: 'Power / Reasoning' },
+  { key: 'easeOfUse', label: 'Ease of Use' },
+  { key: 'costEfficiency', label: 'Cost Efficiency' },
+  { key: 'integration', label: 'Integration Ecosystem' },
+];
+
 export const ComparisonPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const initialTools = useMemo(() => {
@@ -170,58 +177,21 @@ export const ComparisonPage: React.FC = () => {
                                 </td>
                               ))}
                           </tr>
-                          <tr>
-                              <td className="px-6 py-4 font-black text-surface-text uppercase tracking-widest sticky left-0 z-10 bg-dark-800 border-r-2 border-dark-700">Power / Reasoning</td>
+                          {SPEC_BENCHMARK_ROWS.map(({ key, label }) => (
+                            <tr key={key}>
+                              <td className="px-6 py-4 font-black text-surface-text uppercase tracking-widest sticky left-0 z-10 bg-dark-800 border-r-2 border-dark-700">{label}</td>
                               {orderedTools.map(t => (
                                 <td key={t.id} className={`px-6 py-4 ${t.id === pinnedToolId ? 'bg-dark-850 border-x-2 border-jenga-500 font-bold' : 'border-r border-dark-700'}`}>
                                   <div className="flex items-center gap-2">
                                     <div className="w-16 bg-dark-950 h-2 border border-dark-600">
-                                      <div className="bg-jenga-500 h-full" style={{ width: `${t.specs.power}%` }} />
+                                      <div className="bg-jenga-500 h-full" style={{ width: `${t.specs[key]}%` }} />
                                     </div>
-                                    <span>{t.specs.power}</span>
+                                    <span>{t.specs[key]}</span>
                                   </div>
                                 </td>
                               ))}
-                          </tr>
-                          <tr>
-                              <td className="px-6 py-4 font-black text-surface-text uppercase tracking-widest sticky left-0 z-10 bg-dark-800 border-r-2 border-dark-700">Ease of Use</td>
-                              {orderedTools.map(t => (
-                                <td key={t.id} className={`px-6 py-4 ${t.id === pinnedToolId ? 'bg-dark-850 border-x-2 border-jenga-500 font-bold' : 'border-r border-dark-700'}`}>
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-16 bg-dark-950 h-2 border border-dark-600">
-                                      <div className="bg-jenga-500 h-full" style={{ width: `${t.specs.easeOfUse}%` }} />
-                                    </div>
-                                    <span>{t.specs.easeOfUse}</span>
-                                  </div>
-                                </td>
-                              ))}
-                          </tr>
-                          <tr>
-                              <td className="px-6 py-4 font-black text-surface-text uppercase tracking-widest sticky left-0 z-10 bg-dark-800 border-r-2 border-dark-700">Cost Efficiency</td>
-                              {orderedTools.map(t => (
-                                <td key={t.id} className={`px-6 py-4 ${t.id === pinnedToolId ? 'bg-dark-850 border-x-2 border-jenga-500 font-bold' : 'border-r border-dark-700'}`}>
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-16 bg-dark-950 h-2 border border-dark-600">
-                                      <div className="bg-jenga-500 h-full" style={{ width: `${t.specs.costEfficiency}%` }} />
-                                    </div>
-                                    <span>{t.specs.costEfficiency}</span>
-                                  </div>
-                                </td>
-                              ))}
-                          </tr>
-                          <tr>
-                              <td className="px-6 py-4 font-black text-surface-text uppercase tracking-widest sticky left-0 z-10 bg-dark-800 border-r-2 border-dark-700">Integration Ecosystem</td>
-                              {orderedTools.map(t => (
-                                <td key={t.id} className={`px-6 py-4 ${t.id === pinnedToolId ? 'bg-dark-850 border-x-2 border-jenga-500 font-bold' : 'border-r border-dark-700'}`}>
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-16 bg-dark-950 h-2 border border-dark-600">
-                                      <div className="bg-jenga-500 h-full" style={{ width: `${t.specs.integration}%` }} />
-                                    </div>
-                                    <span>{t.specs.integration}</span>
-                                  </div>
-                                </td>
-                              ))}
-                          </tr>
+                            </tr>
+                          ))}
                           <tr>
                               <td className="px-6 py-4 font-black text-surface-text uppercase tracking-widest sticky left-0 z-10 bg-dark-800 border-r-2 border-dark-700">Key Tags</td>
                               {orderedTools.map(t => (

@@ -515,37 +515,61 @@ export const STARTER_STACKS: StarterStack[] = [
 export const FEATURED_STACKS: ToolStack[] = STARTER_STACKS;
 
 
-export interface PromptTemplate {
-  id: string;
-  title: string;
-  description: string;
-  category: ToolCategory;
-  content: string;
-}
-
-export const PROMPTS_REGISTRY: PromptTemplate[] = [
-  {
-    id: "prompt-prd-generator",
-    title: "The Ultimate PRD Generator",
-    description: "Generates a comprehensive Product Requirements Document from a 2-sentence idea.",
-    category: ToolCategory.PRODUCTIVITY,
-    content: "You are a world-class Product Manager. I will provide you with a high-level product idea. You will generate a complete PRD including: 1. Executive Summary 2. Problem Statement 3. Target Audience 4. Key Use Cases 5. Functional Requirements (MoSCoW format) 6. Non-Functional Requirements 7. Success Metrics (KPIs). Do not hallucinate features. Ask clarifying questions if the idea is too vague. Here is the idea: [INSERT IDEA]"
-  },
-  {
-    id: "prompt-code-reviewer",
-    title: "Senior Code Reviewer",
-    description: "Acts as an uncompromising senior engineer finding edge cases and security flaws.",
-    category: ToolCategory.DEV_TOOLS,
-    content: "You are a Principal Software Engineer conducting a strict code review. Review the following code for: 1. Security vulnerabilities (OWASP top 10) 2. Performance bottlenecks 3. Edge cases and unexpected inputs 4. Readability and maintainability. Provide your feedback in bullet points, sorted by severity (Critical, High, Medium, Low). Then, provide a refactored version of the code that addresses the issues. Code: [INSERT CODE]"
-  },
-  {
-    id: "prompt-ui-ux-critic",
-    title: "Brutal UI/UX Critic",
-    description: "Provides honest, actionable feedback on design descriptions or code.",
-    category: ToolCategory.DEV_TOOLS,
-    content: "Act as a ruthless but constructive UI/UX designer. I will describe a UI layout or show you frontend code. Tear it down. Focus on: Accessibility, Hierarchy, Spacing, Cognitive Load, and the 'Squint Test'. Tell me exactly why it sucks and give me 3 bullet points on how to fix it immediately."
-  }
-];
-
 export const getToolById = (id: string): Tool | undefined => TOOLS_REGISTRY.find(t => t.id === id);
 
+export interface ToolRegistryQueryParams {
+  q?: string;
+  category?: string;
+  pricing?: string;
+  sort?: string;
+  page?: number;
+  limit?: number;
+}
+
+export function queryToolsRegistry(params: ToolRegistryQueryParams = {}) {
+  const q = (params.q || '').toLowerCase().trim();
+  const category = (params.category || '').trim();
+  const pricing = (params.pricing || '').trim();
+  const sort = (params.sort || 'relevance').toLowerCase().trim();
+  const page = Number.isFinite(params.page) && (params.page as number) >= 1 ? Math.floor(params.page as number) : 1;
+  const limit = Number.isFinite(params.limit) && (params.limit as number) >= 1 ? Math.min(100, Math.floor(params.limit as number)) : 20;
+
+  let filtered = TOOLS_REGISTRY.filter((tool) => {
+    const matchQuery =
+      !q ||
+      tool.name.toLowerCase().includes(q) ||
+      tool.description.toLowerCase().includes(q) ||
+      tool.tags.some((tag) => tag.toLowerCase().includes(q));
+    const matchCategory = !category || category === 'All' || tool.category.toLowerCase() === category.toLowerCase();
+    const matchPricing = !pricing || pricing === 'All' || tool.pricing.toLowerCase() === pricing.toLowerCase();
+    return matchQuery && matchCategory && matchPricing;
+  });
+
+  if (sort === 'rating') {
+    filtered = [...filtered].sort((a, b) => b.rating - a.rating);
+  } else if (sort === 'reviews') {
+    filtered = [...filtered].sort((a, b) => b.reviews - a.reviews);
+  } else if (sort === 'name') {
+    filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  const total = filtered.length;
+  const startIndex = (page - 1) * limit;
+  const data = filtered.slice(startIndex, startIndex + limit);
+
+  return {
+    data,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1,
+    },
+  };
+}
+
+export function getRelatedTools(tool: Tool, limit = 5): Tool[] {
+  return TOOLS_REGISTRY
+    .filter((t) => t.id !== tool.id && (t.category === tool.category || t.tags.some((tag) => tool.tags.includes(tag))))
+    .slice(0, limit);
+}

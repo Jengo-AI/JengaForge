@@ -1,11 +1,7 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { motion } from 'motion/react';
 
 export const PageWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  useEffect(() => {
-    // Scroll to top when this wrapper mounts (which is right after exit animation finishes)
-    window.scrollTo(0, 0);
-  }, []);
 
   return (
     <motion.div

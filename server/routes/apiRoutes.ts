@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { TOOLS_REGISTRY, FEATURED_STACKS } from "../../constants";
+import { TOOLS_REGISTRY, FEATURED_STACKS, getToolById, queryToolsRegistry, getRelatedTools } from "../../constants";
 import { chatLimiter, workflowSynthesisLimiter } from "../middleware/security";
 import { generateChatResponse, generateWorkflowSuggestion } from "../services/aiService";
 
@@ -56,47 +56,22 @@ apiRouter.get("/v2/stats", (_req: Request, res: Response) => {
 
 // Tools Query Handler
 const getToolsHandler = (req: Request, res: Response) => {
-  const q = (req.query.q as string || "").toLowerCase().trim();
-  const category = (req.query.category as string || "").trim();
-  const pricing = (req.query.pricing as string || "").trim();
-  const sort = (req.query.sort as string || "relevance").toLowerCase().trim();
-
   const parsedPage = Number.parseInt(String(req.query.page ?? "1"), 10);
-  const page = Number.isFinite(parsedPage) && parsedPage >= 1 ? parsedPage : 1;
-
   const parsedLimit = Number.parseInt(String(req.query.limit ?? "20"), 10);
-  const limit = Number.isFinite(parsedLimit) && parsedLimit >= 1 ? Math.min(100, parsedLimit) : 20;
 
-  let filtered = TOOLS_REGISTRY.filter((tool) => {
-    const matchQuery = !q || tool.name.toLowerCase().includes(q) ||
-      tool.description.toLowerCase().includes(q) ||
-      tool.tags.some((tag) => tag.toLowerCase().includes(q));
-    const matchCategory = !category || category === "All" || tool.category.toLowerCase() === category.toLowerCase();
-    const matchPricing = !pricing || pricing === "All" || tool.pricing.toLowerCase() === pricing.toLowerCase();
-    return matchQuery && matchCategory && matchPricing;
+  const { data, meta } = queryToolsRegistry({
+    q: req.query.q as string | undefined,
+    category: req.query.category as string | undefined,
+    pricing: req.query.pricing as string | undefined,
+    sort: req.query.sort as string | undefined,
+    page: parsedPage,
+    limit: parsedLimit,
   });
-
-  if (sort === "rating") {
-    filtered = [...filtered].sort((a, b) => b.rating - a.rating);
-  } else if (sort === "reviews") {
-    filtered = [...filtered].sort((a, b) => b.reviews - a.reviews);
-  } else if (sort === "name") {
-    filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-  }
-
-  const total = filtered.length;
-  const startIndex = (page - 1) * limit;
-  const paginated = filtered.slice(startIndex, startIndex + limit);
 
   res.json({
     status: "success",
-    data: paginated,
-    meta: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit) || 1,
-    },
+    data,
+    meta,
   });
 };
 
@@ -106,17 +81,13 @@ apiRouter.get("/tools", getToolsHandler);
 // Single Tool Query Handler
 const getToolByIdHandler = (req: Request, res: Response) => {
   const toolId = String(req.params.id);
-  const tool = TOOLS_REGISTRY.find((t) => t.id === toolId);
+  const tool = getToolById(toolId);
   if (!tool) {
     res.status(404).json({ error: `Tool with id '${toolId}' not found.` });
     return;
   }
 
-  const related = TOOLS_REGISTRY
-    .filter((t) => t.id !== tool.id && (t.category === tool.category || t.tags.some((tag) => tool.tags.includes(tag))))
-    .slice(0, 5);
-
-  res.json({ status: "success", data: tool, related });
+  res.json({ status: "success", data: tool, related: getRelatedTools(tool) });
 };
 
 apiRouter.get("/v2/tools/:id", getToolByIdHandler);
@@ -134,6 +105,34 @@ const getStacksHandler = (_req: Request, res: Response) => {
 apiRouter.get("/v2/stacks/featured", getStacksHandler);
 apiRouter.get("/stacks/featured", getStacksHandler);
 apiRouter.get("/stacks", getStacksHandler);
+
+function handleAiRouteError(
+  res: Response,
+  err: unknown,
+  routeLabel: string,
+  unconfiguredMessage: string,
+  fallbackMessage: string
+) {
+  const errMsg = err instanceof Error ? err.message : String(err);
+  if (errMsg === "SERVER_API_KEY_NOT_CONFIGURED") {
+    res.status(503).json({
+      error: unconfiguredMessage,
+      code: "SERVER_API_KEY_NOT_CONFIGURED",
+    });
+    return;
+  }
+
+  if (errMsg.includes("API key not valid") || errMsg.includes("403")) {
+    res.status(403).json({
+      error: "The configured server Gemini API key is invalid or unauthorized.",
+      code: "INVALID_API_KEY",
+    });
+    return;
+  }
+
+  console.error(`${routeLabel}:`, errMsg);
+  res.status(500).json({ error: fallbackMessage });
+}
 
 // Chat AI Route
 apiRouter.post("/chat", chatLimiter, async (req: Request, res: Response) => {
@@ -153,30 +152,16 @@ apiRouter.post("/chat", chatLimiter, async (req: Request, res: Response) => {
     try {
       const text = await generateChatResponse(message, history);
       res.json({ status: "success", text });
-    } catch (err: any) {
-      if (err?.message === "SERVER_API_KEY_NOT_CONFIGURED") {
-        res.status(503).json({
-          error: "Gemini API key is not configured on the server. Set GEMINI_API_KEY in Secrets or your server environment.",
-          code: "SERVER_API_KEY_NOT_CONFIGURED",
-        });
-        return;
-      }
-
-      const errMsg = err instanceof Error ? err.message : String(err);
-      if (errMsg.includes("API key not valid") || errMsg.includes("403")) {
-        res.status(403).json({
-          error: "The configured server Gemini API key is invalid or unauthorized.",
-          code: "INVALID_API_KEY",
-        });
-        return;
-      }
-
-      console.error("Gemini Chat Route Error:", errMsg);
-      res.status(500).json({
-        error: "Failed to generate AI response. Please try again later.",
-      });
+    } catch (err: unknown) {
+      handleAiRouteError(
+        res,
+        err,
+        "Gemini Chat Route Error",
+        "Gemini API key is not configured on the server. Set GEMINI_API_KEY in Secrets or your server environment.",
+        "Failed to generate AI response. Please try again later."
+      );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Unhandled Chat Controller Error:", error instanceof Error ? error.message : "Unknown error");
     res.status(500).json({ error: "Failed to process chat request." });
   }
@@ -200,30 +185,16 @@ apiRouter.post("/workflow/suggest", workflowSynthesisLimiter, async (req: Reques
     try {
       const suggestion = await generateWorkflowSuggestion(prompt);
       res.json({ status: "success", data: suggestion });
-    } catch (err: any) {
-      if (err?.message === "SERVER_API_KEY_NOT_CONFIGURED") {
-        res.status(503).json({
-          error: "Gemini workflow service is not configured on the server. Set GEMINI_API_KEY in Secrets or your server environment.",
-          code: "SERVER_API_KEY_NOT_CONFIGURED",
-        });
-        return;
-      }
-
-      const errMsg = err instanceof Error ? err.message : String(err);
-      if (errMsg.includes("API key not valid") || errMsg.includes("403")) {
-        res.status(403).json({
-          error: "The configured server Gemini API key is invalid or unauthorized.",
-          code: "INVALID_API_KEY",
-        });
-        return;
-      }
-
-      console.error("Workflow Suggest Route Error:", errMsg);
-      res.status(500).json({
-        error: "Failed to synthesize workflow suggestion. Please try again.",
-      });
+    } catch (err: unknown) {
+      handleAiRouteError(
+        res,
+        err,
+        "Workflow Suggest Route Error",
+        "Gemini workflow service is not configured on the server. Set GEMINI_API_KEY in Secrets or your server environment.",
+        "Failed to synthesize workflow suggestion. Please try again."
+      );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Unhandled Workflow Controller Error:", error instanceof Error ? error.message : "Unknown error");
     res.status(500).json({ error: "Failed to process workflow synthesis request." });
   }

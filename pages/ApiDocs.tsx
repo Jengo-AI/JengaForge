@@ -118,72 +118,38 @@ export const ApiDocs: React.FC = () => {
     }
   };
 
+  const formatSnippet = (method: 'GET' | 'POST', path: string, body?: Record<string, unknown>) => {
+    const url = `${window.location.origin}${path}`;
+    if (method === 'GET') {
+      if (activeLang === 'curl') return `curl -X GET "${url}" \\\n  -H "Accept: application/json"`;
+      if (activeLang === 'ts') return `const res = await fetch("${url}");\nconst data = await res.json();\nconsole.log(data);`;
+      return `import requests\n\nres = requests.get("${url}")\nprint(res.json())`;
+    }
+
+    const jsonBody = JSON.stringify(body ?? {});
+    if (activeLang === 'curl') return `curl -X POST "${url}" \\\n  -H "Content-Type: application/json" \\\n  -d '${jsonBody}'`;
+    if (activeLang === 'ts') return `const res = await fetch("${url}", {\n  method: "POST",\n  headers: { "Content-Type": "application/json" },\n  body: JSON.stringify(${jsonBody})\n});`;
+    return `import requests\n\nres = requests.post("${url}", json=${jsonBody})\nprint(res.json())`;
+  };
+
   const getCodeSnippet = () => {
-    const origin = window.location.origin;
     if (activeEndpoint === 'tools') {
       const catParam = encodeURIComponent(queryCategory || ToolCategory.LLM);
-      const query = `/api/v2/tools?category=${catParam}&limit=5`;
-      if (activeLang === 'curl') {
-        return `curl -X GET "${origin}${query}" \\\n  -H "Accept: application/json"`;
-      } else if (activeLang === 'ts') {
-        return `const res = await fetch("${origin}${query}");\nconst data = await res.json();\nconsole.log(data.data);`;
-      } else {
-        return `import requests\n\nres = requests.get("${origin}${query}")\nprint(res.json())`;
-      }
+      return formatSnippet('GET', `/api/v2/tools?category=${catParam}&limit=5`);
     }
-
     if (activeEndpoint === 'tool') {
       const toolId = encodeURIComponent(singleToolId.trim() || 'cursor-agent');
-      if (activeLang === 'curl') {
-        return `curl -X GET "${origin}/api/v2/tools/${toolId}" \\\n  -H "Accept: application/json"`;
-      } else if (activeLang === 'ts') {
-        return `const res = await fetch("${origin}/api/v2/tools/${toolId}");\nconst data = await res.json();\nconsole.log(data);`;
-      } else {
-        return `import requests\n\nres = requests.get("${origin}/api/v2/tools/${toolId}")\nprint(res.json())`;
-      }
+      return formatSnippet('GET', `/api/v2/tools/${toolId}`);
     }
-
-    if (activeEndpoint === 'stacks') {
-      if (activeLang === 'curl') {
-        return `curl -X GET "${origin}/api/v2/stacks/featured" \\\n  -H "Accept: application/json"`;
-      } else if (activeLang === 'ts') {
-        return `const res = await fetch("${origin}/api/v2/stacks/featured");\nconst data = await res.json();\nconsole.log(data.data);`;
-      } else {
-        return `import requests\n\nres = requests.get("${origin}/api/v2/stacks/featured")\nprint(res.json())`;
-      }
-    }
-
-    if (activeEndpoint === 'stats') {
-      if (activeLang === 'curl') {
-        return `curl -X GET "${origin}/api/v2/stats"`;
-      } else if (activeLang === 'ts') {
-        return `const stats = await (await fetch("${origin}/api/v2/stats")).json();\nconsole.log(stats.data);`;
-      } else {
-        return `import requests\n\nstats = requests.get("${origin}/api/v2/stats").json()\nprint(stats)`;
-      }
-    }
-
+    if (activeEndpoint === 'stacks') return formatSnippet('GET', '/api/v2/stacks/featured');
+    if (activeEndpoint === 'stats') return formatSnippet('GET', '/api/v2/stats');
     if (activeEndpoint === 'chat') {
-      if (activeLang === 'curl') {
-        return `curl -X POST "${origin}/api/chat" \\\n  -H "Content-Type: application/json" \\\n  -d '{"message": "Summarize DeepSeek V4.1 Flash", "history": []}'`;
-      } else if (activeLang === 'ts') {
-        return `const res = await fetch("${origin}/api/chat", {\n  method: "POST",\n  headers: { "Content-Type": "application/json" },\n  body: JSON.stringify({ message: "Summarize DeepSeek V4.1 Flash", history: [] })\n});`;
-      } else {
-        return `import requests\n\nres = requests.post("${origin}/api/chat", json={"message": "Summarize DeepSeek V4.1 Flash", "history": []})\nprint(res.json())`;
-      }
+      return formatSnippet('POST', '/api/chat', { message: 'Summarize DeepSeek V4.1 Flash', history: [] });
     }
-
     if (activeEndpoint === 'workflow') {
-      if (activeLang === 'curl') {
-        return `curl -X POST "${origin}/api/workflow/suggest" \\\n  -H "Content-Type: application/json" \\\n  -d '{"prompt": "Build an autonomous full-stack TypeScript app pipeline"}'`;
-      } else if (activeLang === 'ts') {
-        return `const res = await fetch("${origin}/api/workflow/suggest", {\n  method: "POST",\n  headers: { "Content-Type": "application/json" },\n  body: JSON.stringify({ prompt: "Build an autonomous full-stack TypeScript app pipeline" })\n});`;
-      } else {
-        return `import requests\n\nres = requests.post("${origin}/api/workflow/suggest", json={"prompt": "Build an autonomous full-stack TypeScript app pipeline"})\nprint(res.json())`;
-      }
+      return formatSnippet('POST', '/api/workflow/suggest', { prompt: 'Build an autonomous full-stack TypeScript app pipeline' });
     }
-
-    return `curl -X GET "${origin}/api/health"`;
+    return formatSnippet('GET', '/api/health');
   };
 
   const copyToClipboard = () => {

@@ -171,8 +171,11 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function errorHandler(err: any, req: Request, res: Response, next: NextFunction) {
+export function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction) {
   console.error("Unhandled Server Error:", err?.message || "Unknown error");
+  if (res.headersSent) {
+    _next(err);
+    return;
+  }
   res.status(500).json({ error: "Internal Server Error" });
 }

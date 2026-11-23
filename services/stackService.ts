@@ -1,7 +1,8 @@
-import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { handleFirestoreError, OperationType } from '../context/AuthContext';
 import { TOOLS_REGISTRY } from '../constants';
+import { normalizeIsoTimestamp } from './securityUtils';
 
 export interface UserStack {
   id: string;
@@ -10,19 +11,6 @@ export interface UserStack {
   toolIds: string[];
   createdAt: string;
   updatedAt: string;
-}
-
-function normalizeTimestamp(value: unknown): string {
-  if (!value) return new Date().toISOString();
-  if (value instanceof Timestamp) {
-    return value.toDate().toISOString();
-  }
-  if (typeof value === 'object' && value !== null && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
-    return (value as { toDate: () => Date }).toDate().toISOString();
-  }
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return new Date(value).toISOString();
-  return new Date().toISOString();
 }
 
 const CANONICAL_TOOL_IDS = new Set<string>(TOOLS_REGISTRY.map(t => t.id));
@@ -45,8 +33,8 @@ export const stackService = {
         const data = doc.data();
         return {
           ...data,
-          createdAt: normalizeTimestamp(data.createdAt),
-          updatedAt: normalizeTimestamp(data.updatedAt),
+          createdAt: normalizeIsoTimestamp(data.createdAt),
+          updatedAt: normalizeIsoTimestamp(data.updatedAt),
         } as UserStack;
       });
     } catch (error) {
@@ -63,8 +51,8 @@ export const stackService = {
         const data = docSnap.data();
         return {
           ...data,
-          createdAt: normalizeTimestamp(data.createdAt),
-          updatedAt: normalizeTimestamp(data.updatedAt),
+          createdAt: normalizeIsoTimestamp(data.createdAt),
+          updatedAt: normalizeIsoTimestamp(data.updatedAt),
         } as UserStack;
       }
       return null;

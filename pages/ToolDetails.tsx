@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getToolById, TOOLS_REGISTRY } from '../constants';
+import { getToolById, getRelatedTools } from '../constants';
 import { Tool } from '../types';
 import { toolService } from '../services/toolService';
 import { 
@@ -50,9 +50,7 @@ export const ToolDetails: React.FC = () => {
       if (res.related && res.related.length > 0) {
         setRelatedTools(res.related);
       } else if (res.tool) {
-        setRelatedTools(
-          TOOLS_REGISTRY.filter(t => t.id !== res.tool?.id && (t.category === res.tool?.category || t.tags.some(tag => res.tool?.tags.includes(tag)))).slice(0, 5)
-        );
+        setRelatedTools(getRelatedTools(res.tool));
       }
       setIsLoading(false);
     });

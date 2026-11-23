@@ -1,8 +1,8 @@
-import { collection, doc, getDoc, setDoc, getDocs, query, where, orderBy, limit, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, getDocs, query, where, orderBy, limit, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { handleFirestoreError, OperationType } from '../context/AuthContext';
 import { getToolById } from '../constants';
-import { isValidHttpUrl, sanitizeClientErrorMessage } from './securityUtils';
+import { isValidHttpUrl, sanitizeClientErrorMessage, normalizeIsoTimestamp } from './securityUtils';
 
 export interface Review {
   id: string;
@@ -14,19 +14,6 @@ export interface Review {
   text: string;
   createdAt: string;
   updatedAt?: string;
-}
-
-function normalizeTimestamp(value: unknown): string {
-  if (!value) return new Date().toISOString();
-  if (value instanceof Timestamp) {
-    return value.toDate().toISOString();
-  }
-  if (typeof value === 'object' && value !== null && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
-    return (value as { toDate: () => Date }).toDate().toISOString();
-  }
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return new Date(value).toISOString();
-  return new Date().toISOString();
 }
 
 export const reviewService = {
@@ -45,8 +32,8 @@ export const reviewService = {
         return {
           id: docSnap.id,
           ...data,
-          createdAt: normalizeTimestamp(data.createdAt),
-          updatedAt: data.updatedAt ? normalizeTimestamp(data.updatedAt) : undefined,
+          createdAt: normalizeIsoTimestamp(data.createdAt),
+          updatedAt: data.updatedAt ? normalizeIsoTimestamp(data.updatedAt) : undefined,
         } as Review;
       });
     } catch (error) {
@@ -104,7 +91,7 @@ export const reviewService = {
         await setDoc(reviewRef, updatePayload);
         return {
           ...updatePayload,
-          createdAt: normalizeTimestamp(existingData.createdAt),
+          createdAt: normalizeIsoTimestamp(existingData.createdAt),
           updatedAt: new Date().toISOString(),
         } as Review;
       } else {

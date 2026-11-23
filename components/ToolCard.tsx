@@ -1,9 +1,10 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Tool } from '../types';
 import { Star, Zap, Users, Share2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
+import { motion } from 'motion/react';
 import { SocialShareModal } from './SocialShareModal';
+import { useTilt3D } from '../hooks/useTilt3D';
 
 interface ToolCardProps {
   tool: Tool;
@@ -12,41 +13,9 @@ interface ToolCardProps {
 }
 
 export const ToolCard: React.FC<ToolCardProps> = ({ tool, onCompare, isCompared }) => {
-  const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [isShareOpen, setIsShareOpen] = useState(false);
-
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-
-  const mouseXSpring = useSpring(x);
-  const mouseYSpring = useSpring(y);
-
-  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["7.5deg", "-7.5deg"]);
-  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-7.5deg", "7.5deg"]);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    if (!ref.current) return;
-
-    const rect = ref.current.getBoundingClientRect();
-
-    const width = rect.width;
-    const height = rect.height;
-
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    const xPct = mouseX / width - 0.5;
-    const yPct = mouseY / height - 0.5;
-
-    x.set(xPct);
-    y.set(yPct);
-  };
-
-  const handleMouseLeave = () => {
-    x.set(0);
-    y.set(0);
-  };
+  const { ref, rotateX, rotateY, handleMouseMove, handleMouseLeave } = useTilt3D<HTMLDivElement>(7.5);
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Prevent navigation if clicking the compare button

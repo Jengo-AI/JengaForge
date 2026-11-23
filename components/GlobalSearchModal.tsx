@@ -26,7 +26,6 @@ interface SearchResultItem {
   url: string;
   badge?: string;
   rating?: number;
-  highlightMatch?: string;
 }
 
 const RECENT_SEARCHES_KEY = 'jenga_recent_searches_v1';

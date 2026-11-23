@@ -8,6 +8,13 @@ import { SocialShareModal } from './SocialShareModal';
 import { AmbientBackground } from './AmbientBackground';
 import { GlobalSearchModal } from './GlobalSearchModal';
 
+const NAV_LINKS = [
+  { to: '/', label: 'Explore' },
+  { to: '/starter-stacks', label: 'Starter Stacks' },
+  { to: '/stacks', label: 'Stacks' },
+  { to: '/compare', label: 'Compare' },
+] as const;
+
 interface HeaderProps {
   onOpenShare: () => void;
   onOpenSearch: () => void;
@@ -56,10 +63,11 @@ const Header: React.FC<HeaderProps> = ({ onOpenShare, onOpenSearch }) => {
 
         {/* Navigation Links */}
         <nav className="hidden lg:flex items-center gap-6 font-mono uppercase tracking-[0.05rem] text-[12px] font-medium shrink-0">
-          <Link to="/" className={isActive('/')}>Explore</Link>
-          <Link to="/starter-stacks" className={isActive('/starter-stacks')}>Starter Stacks</Link>
-          <Link to="/stacks" className={isActive('/stacks')}>Stacks</Link>
-          <Link to="/compare" className={isActive('/compare')}>Compare</Link>
+          {NAV_LINKS.map((link) => (
+            <Link key={link.to} to={link.to} className={isActive(link.to)}>
+              {link.label}
+            </Link>
+          ))}
         </nav>
 
         {/* Header Right Actions */}
@@ -186,10 +194,16 @@ const Header: React.FC<HeaderProps> = ({ onOpenShare, onOpenSearch }) => {
             <Search className="w-4 h-4 text-jenga-500" />
             <span>Search Tools & Stacks</span>
           </button>
-          <Link to="/" className="block text-surface-text py-2 hover:text-jenga-500" onClick={() => setIsMenuOpen(false)}>Explore</Link>
-          <Link to="/starter-stacks" className="block text-surface-text py-2 hover:text-jenga-500" onClick={() => setIsMenuOpen(false)}>Starter Stacks</Link>
-          <Link to="/stacks" className="block text-surface-text py-2 hover:text-jenga-500" onClick={() => setIsMenuOpen(false)}>Stacks</Link>
-          <Link to="/compare" className="block text-surface-text py-2 hover:text-jenga-500" onClick={() => setIsMenuOpen(false)}>Compare</Link>
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              className="block text-surface-text py-2 hover:text-jenga-500"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              {link.label}
+            </Link>
+          ))}
           <button
             onClick={() => {
               setIsMenuOpen(false);

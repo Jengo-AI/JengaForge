@@ -118,141 +118,15 @@ export const Stacks: React.FC = () => {
     );
   }
 
-  if (stacks.length === 0) {
-    return (
-      <PageWrapper>
-        <div className="container mx-auto px-4 py-24 text-center">
-        <div className="w-20 h-20 bg-dark-800 border-4 border-dark-600 rounded-none flex items-center justify-center mx-auto mb-6">
-            <Layers className="w-10 h-10 text-surface-muted" />
-        </div>
-        <h1 className="text-4xl font-black text-surface-text mb-4 uppercase tracking-widest">No Stacks Yet</h1>
-        <p className="text-surface-muted text-lg mb-10 max-w-md mx-auto font-mono">
-            You haven't built any intelligence stacks. Head to the forge to start organizing your AI arsenal.
-        </p>
-        {actionError && (
-          <div className="mb-8 max-w-xl mx-auto p-4 bg-red-950/80 border-2 border-red-500 text-red-400 font-mono text-xs flex items-center justify-between gap-4 text-left">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{actionError}</span>
-            </div>
-            <button onClick={() => setActionError(null)} className="text-red-300 hover:text-white" aria-label="Dismiss error">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-          <Link 
-            to="/starter-stacks"
-            className="inline-flex items-center gap-2 bg-jenga-500 hover:bg-jenga-400 text-dark-950 px-8 py-4 font-black text-xl transition-all border-4 border-dark-950 shadow-[8px_8px_0px_0px_rgba(255,140,0,1)] rounded-none uppercase tracking-widest cursor-pointer"
-          >
-              <Sparkles className="w-5 h-5 text-dark-950" /> Starter Stacks
-          </Link>
-          <button 
-            onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center gap-2 bg-dark-800 hover:bg-dark-700 text-surface-text px-8 py-4 font-black text-xl transition-all border-4 border-dark-600 rounded-none uppercase tracking-widest cursor-pointer"
-          >
-              Create Stack <Plus className="w-6 h-6" />
-          </button>
-          <Link to="/" className="inline-flex items-center gap-2 bg-dark-800 hover:bg-dark-700 text-surface-text px-8 py-4 font-black text-xl transition-all border-4 border-dark-600 rounded-none uppercase tracking-widest">
-              Explore Tools <ArrowRight className="w-6 h-6" />
-          </Link>
-        </div>
-
-        {/* AI Workflow Synthesizer prompt for empty workspace */}
-        <div className="text-left max-w-4xl mx-auto">
-          <AIWorkflowSuggester 
-            onStackCreated={() => {
-              if (user) {
-                stackService.getUserStacks(user.id).then(setStacks);
-              }
-            }} 
-          />
-        </div>
-      </div>
-      
-      {/* Create Stack Modal */}
-      <AnimatePresence>
-        {isCreateModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/80 backdrop-blur-md" 
-              onClick={() => setIsCreateModalOpen(false)} 
-            />
-            
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative bg-dark-800 border-4 border-dark-600 w-full max-w-lg rounded-none shadow-[16px_16px_0px_0px_rgba(255,140,0,1)] overflow-hidden"
-            >
-              <div className="p-10 border-b-4 border-dark-600 flex items-center justify-between bg-dark-900">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-jenga-500 rounded-none border-2 border-dark-950">
-                      <Layers className="text-dark-950 w-6 h-6" />
-                  </div>
-                  <h3 className="text-3xl font-black text-surface-text tracking-widest uppercase">New Stack</h3>
-                </div>
-                <button onClick={() => setIsCreateModalOpen(false)} className="text-surface-muted hover:text-jenga-500 transition-colors">
-                  <X className="w-8 h-8" />
-                </button>
-              </div>
-              
-              <div className="p-10">
-                <form onSubmit={handleCreateStack} className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-surface-muted uppercase tracking-widest ml-1 font-mono">Stack Name</label>
-                    <input 
-                      type="text" 
-                      value={newStackName}
-                      onChange={(e) => setNewStackName(e.target.value)}
-                      placeholder="e.g. Video Production Hub"
-                      className="w-full bg-dark-900 border-2 border-dark-600 px-6 py-4 text-surface-text focus:outline-none focus:border-jenga-500 transition-all font-bold placeholder:text-surface-muted rounded-none font-mono"
-                      autoFocus
-                    />
-                  </div>
-                  <button 
-                    type="submit"
-                    disabled={!newStackName.trim() || isCreating}
-                    className="w-full bg-jenga-500 hover:bg-jenga-400 disabled:opacity-50 text-dark-950 px-6 py-4 font-black text-xl transition-all border-2 border-dark-950 active:scale-90 rounded-none uppercase tracking-widest flex items-center justify-center min-h-[64px]"
-                  >
-                    {isCreating ? <Loader2 className="w-6 h-6 animate-spin" /> : "Initialize Stack"}
-                  </button>
-                </form>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-      </PageWrapper>
-    );
-  }
+  const refreshStacks = () => {
+    if (user) {
+      stackService.getUserStacks(user.id).then(setStacks);
+    }
+  };
 
   return (
     <PageWrapper>
       <div className="container mx-auto px-4 py-12 pb-32">
-      <header className="mb-12">
-        <div className="inline-flex items-center gap-2 px-3 py-1 bg-dark-800 border-2 border-dark-600 rounded-none text-jenga-500 text-[10px] font-black uppercase tracking-widest mb-4 font-mono">
-            <Sparkles className="w-3 h-3" />
-            Workspace
-        </div>
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div>
-            <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-surface-text tracking-widest uppercase">Your Intelligence Stacks</h1>
-            <p className="text-surface-muted mt-2 text-lg font-mono">Customized toolchains built for specialized outcomes.</p>
-          </div>
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="self-start md:self-auto inline-flex items-center gap-2 bg-jenga-500 hover:bg-jenga-400 text-dark-950 px-5 py-3 font-black text-sm uppercase tracking-widest transition-all border-2 border-dark-950 rounded-none cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            Manual Stack
-          </button>
-        </div>
-      </header>
-
       {actionError && (
         <div className="mb-8 p-4 bg-red-950/80 border-2 border-red-500 text-red-400 font-mono text-xs flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -264,17 +138,63 @@ export const Stacks: React.FC = () => {
           </button>
         </div>
       )}
+      {stacks.length === 0 ? (
+        <div className="py-12 text-center">
+          <div className="w-20 h-20 bg-dark-800 border-4 border-dark-600 rounded-none flex items-center justify-center mx-auto mb-6">
+            <Layers className="w-10 h-10 text-surface-muted" />
+          </div>
+          <h1 className="text-4xl font-black text-surface-text mb-4 uppercase tracking-widest">No Stacks Yet</h1>
+          <p className="text-surface-muted text-lg mb-10 max-w-md mx-auto font-mono">
+            You haven&apos;t built any intelligence stacks. Head to the forge to start organizing your AI arsenal.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+            <Link
+              to="/starter-stacks"
+              className="inline-flex items-center gap-2 bg-jenga-500 hover:bg-jenga-400 text-dark-950 px-8 py-4 font-black text-xl transition-all border-4 border-dark-950 shadow-[8px_8px_0px_0px_rgba(255,140,0,1)] rounded-none uppercase tracking-widest cursor-pointer"
+            >
+              <Sparkles className="w-5 h-5 text-dark-950" /> Starter Stacks
+            </Link>
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="inline-flex items-center gap-2 bg-dark-800 hover:bg-dark-700 text-surface-text px-8 py-4 font-black text-xl transition-all border-4 border-dark-600 rounded-none uppercase tracking-widest cursor-pointer"
+            >
+              Create Stack <Plus className="w-6 h-6" />
+            </button>
+            <Link to="/" className="inline-flex items-center gap-2 bg-dark-800 hover:bg-dark-700 text-surface-text px-8 py-4 font-black text-xl transition-all border-4 border-dark-600 rounded-none uppercase tracking-widest">
+              Explore Tools <ArrowRight className="w-6 h-6" />
+            </Link>
+          </div>
 
-      {/* Embedded AI Workflow Synthesizer */}
-      <div className="mb-14">
-        <AIWorkflowSuggester 
-          onStackCreated={() => {
-            if (user) {
-              stackService.getUserStacks(user.id).then(setStacks);
-            }
-          }} 
-        />
-      </div>
+          <div className="text-left max-w-4xl mx-auto">
+            <AIWorkflowSuggester onStackCreated={refreshStacks} />
+          </div>
+        </div>
+      ) : (
+        <>
+          <header className="mb-12">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-dark-800 border-2 border-dark-600 rounded-none text-jenga-500 text-[10px] font-black uppercase tracking-widest mb-4 font-mono">
+              <Sparkles className="w-3 h-3" />
+              Workspace
+            </div>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+              <div>
+                <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-surface-text tracking-widest uppercase">Your Intelligence Stacks</h1>
+                <p className="text-surface-muted mt-2 text-lg font-mono">Customized toolchains built for specialized outcomes.</p>
+              </div>
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="self-start md:self-auto inline-flex items-center gap-2 bg-jenga-500 hover:bg-jenga-400 text-dark-950 px-5 py-3 font-black text-sm uppercase tracking-widest transition-all border-2 border-dark-950 rounded-none cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Manual Stack
+              </button>
+            </div>
+          </header>
+
+          {/* Embedded AI Workflow Synthesizer */}
+          <div className="mb-14">
+            <AIWorkflowSuggester onStackCreated={refreshStacks} />
+          </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         {stacks.map((stack, index) => (
@@ -380,7 +300,9 @@ export const Stacks: React.FC = () => {
           </button>
         </motion.div>
       </div>
-      
+        </>
+      )}
+
       {/* Create Stack Modal */}
       <AnimatePresence>
         {isCreateModalOpen && (

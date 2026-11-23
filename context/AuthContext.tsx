@@ -4,20 +4,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 import { auth, db, googleProvider } from '../firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { isValidHttpUrl, sanitizeProfileUpdates } from '../services/securityUtils';
+import { doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { isValidHttpUrl, sanitizeProfileUpdates, normalizeIsoTimestamp } from '../services/securityUtils';
 import { stackService } from '../services/stackService';
-
-function normalizeJoinedAt(value: unknown): string {
-  if (!value) return new Date().toISOString();
-  if (value instanceof Timestamp) return value.toDate().toISOString();
-  if (typeof value === 'object' && value !== null && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
-    return (value as { toDate: () => Date }).toDate().toISOString();
-  }
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return new Date(value).toISOString();
-  return new Date().toISOString();
-}
 
 export enum OperationType {
   CREATE = 'create',
@@ -104,7 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser({
               ...data,
               id: firebaseUser.uid,
-              joinedAt: normalizeJoinedAt(data.joinedAt),
+              joinedAt: normalizeIsoTimestamp(data.joinedAt),
             } as User);
           }
         }, (error) => {
@@ -144,7 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser({
               ...data,
               id: firebaseUser.uid,
-              joinedAt: normalizeJoinedAt(data.joinedAt),
+              joinedAt: normalizeIsoTimestamp(data.joinedAt),
             } as User);
           }
 

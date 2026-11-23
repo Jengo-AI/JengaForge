@@ -115,3 +115,16 @@ export function sanitizeClientErrorMessage(err: unknown, fallbackMessage: string
   }
   return fallbackMessage;
 }
+
+/**
+ * Normalizes Firestore Timestamp-like objects, epoch numbers, or ISO strings into an ISO-8601 string.
+ */
+export function normalizeIsoTimestamp(value: unknown): string {
+  if (!value) return new Date().toISOString();
+  if (typeof value === 'object' && value !== null && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return new Date(value).toISOString();
+  return new Date().toISOString();
+}

@@ -1,46 +1,15 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, Tooltip } from 'recharts';
 import { Tool } from '../types';
-import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
+import { motion } from 'motion/react';
+import { useTilt3D } from '../hooks/useTilt3D';
 
 interface ComparisonChartProps {
   tools: Tool[];
 }
 
 export const ComparisonChart: React.FC<ComparisonChartProps> = ({ tools }) => {
-  const ref = useRef<HTMLDivElement>(null);
-
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-
-  const mouseXSpring = useSpring(x);
-  const mouseYSpring = useSpring(y);
-
-  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["3deg", "-3deg"]);
-  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-3deg", "3deg"]);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    if (!ref.current) return;
-
-    const rect = ref.current.getBoundingClientRect();
-
-    const width = rect.width;
-    const height = rect.height;
-
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    const xPct = mouseX / width - 0.5;
-    const yPct = mouseY / height - 0.5;
-
-    x.set(xPct);
-    y.set(yPct);
-  };
-
-  const handleMouseLeave = () => {
-    x.set(0);
-    y.set(0);
-  };
+  const { ref, rotateX, rotateY, handleMouseMove, handleMouseLeave } = useTilt3D<HTMLDivElement>(3);
 
   if (tools.length === 0) return (
     <div className="h-96 flex items-center justify-center bg-dark-900 rounded-none border-4 border-dashed border-dark-600 text-surface-muted font-mono uppercase tracking-widest">
