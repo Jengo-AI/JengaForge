@@ -1,4 +1,4 @@
-import { Tool, ToolCategory, ToolStack, StarterStack } from './types';
+import { Tool, ToolCategory, ToolStack, StarterStack } from './types.js';
 
 export const TOOLS_REGISTRY: Tool[] = [
   // --- Frontier LLMs ---

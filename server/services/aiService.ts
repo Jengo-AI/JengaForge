@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { TOOLS_REGISTRY, FEATURED_STACKS } from "../../constants";
+import { TOOLS_REGISTRY, FEATURED_STACKS } from "../../constants.js";
 
 const GEMINI_MODEL = "gemini-4-hydrogen";
 

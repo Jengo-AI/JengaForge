@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
-import { TOOLS_REGISTRY, FEATURED_STACKS, getToolById, queryToolsRegistry, getRelatedTools } from "../../constants";
-import { chatLimiter, workflowSynthesisLimiter } from "../middleware/security";
-import { generateChatResponse, generateWorkflowSuggestion } from "../services/aiService";
+import { TOOLS_REGISTRY, FEATURED_STACKS, getToolById, queryToolsRegistry, getRelatedTools } from "../../constants.js";
+import { chatLimiter, workflowSynthesisLimiter } from "../middleware/security.js";
+import { generateChatResponse, generateWorkflowSuggestion } from "../services/aiService.js";
 
 export const apiRouter = Router();
 

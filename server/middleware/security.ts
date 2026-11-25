@@ -6,7 +6,7 @@ import hpp from "hpp";
 import express from "express";
 import path from "path";
 import { isIP } from "node:net";
-import { isAllowedOrigin } from "../../services/securityUtils";
+import { isAllowedOrigin } from "../../services/securityUtils.js";
 
 export function parseForwardedForIp(forwardedHeader: string | string[] | undefined): string | null {
   const raw = Array.isArray(forwardedHeader) ? forwardedHeader[0] : forwardedHeader;
