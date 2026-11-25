@@ -1,6 +1,6 @@
 import express from "express";
-import { configureSecurity, apiLimiter, requestLogger, errorHandler } from "../server/middleware/security";
-import { apiRouter } from "../server/routes/apiRoutes";
+import { configureSecurity, apiLimiter, requestLogger, errorHandler } from "../server/middleware/security.js";
+import { apiRouter } from "../server/routes/apiRoutes.js";
 
 const app = express();
 const origin = "http://jengaforge.invalid";
